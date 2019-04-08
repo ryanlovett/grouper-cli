@@ -61,16 +61,9 @@ def read_member_file(f):
         
 ## main
 def main():
-    if 'GROUPER_BASE_URI' not in os.environ:
-        print("Set GROUPER_BASE_URI in the environment.")
-        sys.exit(1)
-    GROUPER_BASE_URI = os.environ['GROUPER_BASE_URI']
-
-    # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
     
     parser = argparse.ArgumentParser(description="Manage Grouper groups.")
-    parser.add_argument('-B', dest='base_uri',
-        default=GROUPER_BASE_URI, help='Grouper base uri')
+    parser.add_argument('-B', dest='base_uri', help='Grouper base uri')
     parser.add_argument('-C', dest='credentials',
         default='.grouper.json', help='Credentials file')
     parser.add_argument('-v', dest='verbose', action='store_true',
@@ -120,6 +113,16 @@ def main():
     elif args.debug:
         logger.setLevel(logging.DEBUG)
     
+    base_uri = None
+    if 'GROUPER_BASE_URI' in os.environ:
+        base_uri = os.environ['GROUPER_BASE_URI']
+    if args.base_uri:
+        base_uri = args.base_uri
+    if not base_uri:
+        print("Set GROUPER_BASE_URI in the environment or via -B.")
+        sys.exit(1)
+
+    # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
     # read credentials from credentials file
     credentials = read_credentials(args.credentials)
     grouper_auth = grouper.auth(
@@ -129,7 +132,7 @@ def main():
     # take action
     if args.command == 'list':
         try:
-            members = grouper.get_members(args.base_uri, grouper_auth,
+            members = grouper.get_members(base_uri, grouper_auth,
                 args.group)
         except grouper.GroupNotFoundException as e:
             logger.debug(str(e))
@@ -138,10 +141,10 @@ def main():
             for member in members: print(member)
     elif args.command == 'create':
         if args.folder:
-            out = grouper.create_stem(args.base_uri, grouper_auth, args.folder,
+            out = grouper.create_stem(base_uri, grouper_auth, args.folder,
                 args.name, args.description)
         elif args.group:
-            out = grouper.create_group(args.base_uri, grouper_auth, args.group,
+            out = grouper.create_group(base_uri, grouper_auth, args.group,
                 args.name, args.description)
     elif args.command == 'replace':
         members = set(args.members)
