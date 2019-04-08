@@ -91,7 +91,8 @@ def main():
     create_group.add_argument('-f', dest='folder', help='Folder')
     create_parser.add_argument('-D', dest='description', help='Description')
     
-    replace_parser = subparsers.add_parser('add', help='Replace group members')
+    replace_parser = subparsers.add_parser('replace',
+        help='Replace group members')
     replace_parser.add_argument('-g', dest='group', required=True, help='Group')
     replace_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
         help='File with members, one per line')
