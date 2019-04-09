@@ -156,9 +156,13 @@ def main():
     elif args.command == 'attribute':
         if args.attr_add:
             attribute = args.attr_add
-            op = 'add_value'
+            attr_op = 'assign_attr'
+            value_op = 'add_value'
+            value = 'yes'
         elif args.attr_remove:
             attribute = args.attr_remove
-            op = 'remove_value'
+            attr_op = 'remove_attr'
+            value_op = 'remove_value'
+            value = 'no'
         grouper.assign_attribute(base_uri, grouper_auth, args.group, attribute,
-            operation=op)
+            attr_op, value_op, value)

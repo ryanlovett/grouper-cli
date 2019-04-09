@@ -214,20 +214,22 @@ def replace_members(base_uri, auth, group, members):
             raise Exception(f'{code}: {msg}')
     return out
 
-def assign_attribute(base_uri, auth, group, attribute, operation):
+def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=''):
     '''Operate assigned attribute {attribute} on the grouper group {group}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/assignAttributesWithValue/WsSampleAssignAttributesWithValueRestLite_json.txt
     logger.info(f'assigning attributes to {group}')
     data = {
         "WsRestAssignAttributesLiteRequest": {
-            "attributeAssignOperation":"assign_attr",
+            "attributeAssignOperation":attr_op,
             "attributeAssignType":"group",
-            "attributeAssignValueOperation":operation,
-            "valueSystem":"yes",
             "wsAttributeDefNameName":attribute,
             "wsOwnerGroupName":group
         }
     }
+    if value_op == 'add_value':
+        data["WsRestAssignAttributesLiteRequest"]["valueSystem"] = value
+        data["WsRestAssignAttributesLiteRequest"]["attributeAssignValueOperation"] = value_op
+
     r = requests.post(f'{base_uri}/attributeAssignments',
         data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
     )
