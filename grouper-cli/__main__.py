@@ -152,7 +152,7 @@ def main():
         if args.input:
             members |= set(read_member_file(args.input))
         logger.info(members)
-        grouper.replace_members(grouper_auth, args.group, members)
+        grouper.replace_members(base_uri, grouper_auth, args.group, members)
     elif args.command == 'attribute':
         if args.attr_add:
             attribute = args.attr_add
@@ -160,5 +160,5 @@ def main():
         elif args.attr_remove:
             attribute = args.attr_remove
             op = 'remove_value'
-        grouper.assign_attribute(grouper_auth, args.group, attribute,
+        grouper.assign_attribute(base_uri, grouper_auth, args.group, attribute,
             operation=op)

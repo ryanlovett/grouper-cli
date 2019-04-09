@@ -8,8 +8,6 @@ import requests
 # logging
 logger = logging.getLogger('grouper')
 
-base_uri = 'https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100'
-
 class GroupNotFoundException(Exception): pass
 
 def auth(user, password):
@@ -178,7 +176,7 @@ def find_group(base_uri, auth, stem, name):
             raise Exception(f'{code}: {msg}')
     return out
 
-def replace_members(auth, group, members):
+def replace_members(base_uri, auth, group, members):
     '''Replace the members of the grouper group {group} with {users}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/addMember/WsSampleAddMemberRest_json.txt
     logger.info(f'replacing members of {group}')
@@ -216,7 +214,7 @@ def replace_members(auth, group, members):
             raise Exception(f'{code}: {msg}')
     return out
 
-def assign_attribute(auth, group, attribute, operation):
+def assign_attribute(base_uri, auth, group, attribute, operation):
     '''Operate assigned attribute {attribute} on the grouper group {group}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/assignAttributesWithValue/WsSampleAssignAttributesWithValueRestLite_json.txt
     logger.info(f'assigning attributes to {group}')
