@@ -1,0 +1,3 @@
+*.swp
+grouper.egg-info/
+grouper/__pycache__
