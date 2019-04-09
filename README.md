@@ -29,22 +29,34 @@ optional arguments:
 Examples
 --------
 
+Given an academic term and course number:
 ```
-# set our grouper endpoint
+{
+    "year": 2019,
+    "semester": "summer",
+    "class": 14720
+}
+```
+one can create a course folder and group structure.
+
+```
+# shortcut to our class' folders
+org_fldr="edu:berkeley:org:stat:classes"
+term_fldr="${org_fldr}:2019-summer"
+class_fldr="${term_fldr}:14720"
+
+# Groups must be unique in some grouper instances. We disambiguate them with
+# org, term, and course info in their prefix.
+class_prefix="${class_fldr}:stat-classes-2019-summer-14720"
+
+# set our grouper api endpoint
 export GROUPER_BASE_URI="https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100"
 
-# shortcut to our class' folder
-class_fldr="edu:berkeley:org:stat:classes:2193:stat-c8"
-# prefix shortcut to our class' groups
-class_prefix="${class_fldr}:stat-classes-2193-stat-c8"
+# create folder for the summer 2019 term
+grouper create -f ${term_fldr} -n "2019 summer"
 
-# create folder for a non-existent term in the year 20xx
-grouper create -f edu:berkeley:org:stat:classes:2193 \
-	-n "20xx NOTERM"
-
-# create folder for stat-c8 in 20xx NOTERM
-grouper create -f edu:berkeley:org:stat:classes:2193:stat-c8 \
-	-n "Stat C8"
+# create folder for 14720 (compsci-c8) in 2019 summer
+grouper create -f ${class_fldr} -n "Compsci C8"
 
 # create group in stat-c8 NOTERM 20xx for course constituents
 grouper create -g ${class_prefix}-enrolled     -n Enrolled
