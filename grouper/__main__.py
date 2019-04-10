@@ -96,7 +96,7 @@ def main():
     replace_parser.add_argument('-g', dest='group', required=True, help='Group')
     replace_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
         help='File with members, one per line')
-    replace_parser.add_argument('members', metavar='campus-uid', nargs='+',
+    replace_parser.add_argument('members', metavar='campus-uid', nargs='*',
         help='a uid or a group path id')
 
     attr_parser = subparsers.add_parser('attribute',
@@ -148,7 +148,7 @@ def main():
             out = grouper.create_group(base_uri, grouper_auth, args.group,
                 args.name, args.description)
     elif args.command == 'replace':
-        members = set(args.members)
+        members = set(args.members) if args.members else set()
         if args.input:
             members |= set(read_member_file(args.input))
         logger.info(members)
