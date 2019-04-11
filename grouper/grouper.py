@@ -274,7 +274,7 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
     params = {}
     if group is not None:
         params["wsOwnerGroupName"] = group
-    elif group is not None:
+    elif stem is not None:
         params["wsOwnerStemName"] = stem
     data["WsRestGetAttributeAssignmentsLiteRequest"].update(params)
 
