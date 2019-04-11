@@ -105,6 +105,7 @@ def main():
     attr_group = attr_parser.add_mutually_exclusive_group(required=True)
     attr_group.add_argument('-a', dest='attr_add', help='Add attribute.')
     attr_group.add_argument('-r', dest='attr_remove', help='Remove attribute.')
+    attr_group.add_argument('-c', dest='attr_check', help='Check attribute.')
 
     args = parser.parse_args()
 
@@ -159,10 +160,23 @@ def main():
             attr_op = 'assign_attr'
             value_op = 'add_value'
             value = 'yes'
+            has_attr = grouper.group_has_attr(base_uri, grouper_auth,
+                args.group, attribute)
+            if has_attr: return
+            out = grouper.assign_attribute(base_uri, grouper_auth, args.group,
+                    attribute, attr_op, value_op, value)
         elif args.attr_remove:
             attribute = args.attr_remove
             attr_op = 'remove_attr'
             value_op = 'remove_value'
             value = 'no'
-        grouper.assign_attribute(base_uri, grouper_auth, args.group, attribute,
-            attr_op, value_op, value)
+            has_attr = grouper.group_has_attr(base_uri, grouper_auth,
+                args.group, attribute)
+            if not has_attr: return
+            out = grouper.assign_attribute(base_uri, grouper_auth, args.group,
+                    attribute, attr_op, value_op, value)
+        elif args.attr_check:
+            attribute = args.attr_check
+            out = grouper.group_has_attr(base_uri, grouper_auth, args.group,
+                attribute)
+            print(out)

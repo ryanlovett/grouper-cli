@@ -247,3 +247,51 @@ def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=
             msg = out[results_key]['resultMetadata']['resultMessage']
             raise Exception(f'{code}: {msg}')
     return out
+
+def group_has_attr(base_uri, auth, group, attribute):
+    out = get_assign_attribute(base_uri, auth, attribute, group=group)
+    groups = out['WsGetAttributeAssignmentsResults']['wsGroups']
+    if len(groups) != 1:
+        return False
+    retval = groups[0]['name'] == group
+    logger.info(f'{group} has {attribute}: {retval}')
+    return retval
+
+def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
+    '''Operate assigned attribute {attribute} on the grouper group {group}.'''
+    # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getAttributeAssignments/WsSampleGetAttributeAssignmentsRestLite_json.txt
+    logger.info(f'getting attribute {attribute} from {group}')
+    data = {
+        "WsRestGetAttributeAssignmentsLiteRequest": {
+            "wsAttributeDefNameName":attribute,
+            "attributeAssignType":"group",
+            "includeAssignmentsOnAssignments":"F",
+        }
+    }
+
+    # via https://github.com/rb12345/grouper_ws, which exists and is nicer! :P
+    # TODO: use that
+    params = {}
+    if group is not None:
+        params["wsOwnerGroupName"] = group
+    elif group is not None:
+        params["wsOwnerStemName"] = stem
+    data["WsRestGetAttributeAssignmentsLiteRequest"].update(params)
+
+    r = requests.post(f'{base_uri}/attributeAssignments',
+        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
+    )
+    out = r.json()
+    problem_key = 'WsRestResultProblem'
+    if problem_key in out:
+        logger.error(f'{problem_key} in output')
+        meta = out[problem_key]['resultMetadata']
+        raise Exception(meta)
+    results_key = 'WsGetAttributeAssignmentsResults'
+    success_codes = ['SUCCESS']
+    if results_key in out:
+        code = out[results_key]['resultMetadata']['resultCode']
+        if code not in success_codes:
+            msg = out[results_key]['resultMetadata']['resultMessage']
+            raise Exception(f'{code}: {msg}')
+    return out
