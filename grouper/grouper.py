@@ -8,6 +8,13 @@ import requests
 # logging
 logger = logging.getLogger('grouper')
 
+success_codes = [
+    'SUCCESS',
+    'SUCCESS_INSERTED',
+    'SUCCESS_NO_CHANGES_NEEDED',
+    'SUCCESS_UPDATED'
+]
+
 class GroupNotFoundException(Exception): pass
 
 def auth(user, password):
@@ -66,7 +73,7 @@ def create_stem(base_uri, auth, stem, name, description=''):
     results_key = 'WsStemSaveLiteResult'
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
-        if code not in ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']:
+        if code not in success_codes:
             msg = out[results_key]['resultMetadata']['resultMessage']
             raise Exception(f'{code}: {msg}')
     return out
@@ -137,7 +144,6 @@ def create_composite_group(auth, group, name, left_group, right_group):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsGroupSaveLiteResult'
-    success_codes = ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
         if code not in success_codes:
@@ -206,7 +212,6 @@ def replace_members(base_uri, auth, group, members):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsAddMemberResults'
-    success_codes = ['SUCCESS']
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
         if code not in success_codes:
@@ -240,7 +245,6 @@ def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsAssignAttributesLiteResults'
-    success_codes = ['SUCCESS']
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
         if code not in success_codes:
@@ -288,7 +292,6 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsGetAttributeAssignmentsResults'
-    success_codes = ['SUCCESS']
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
         if code not in success_codes:
