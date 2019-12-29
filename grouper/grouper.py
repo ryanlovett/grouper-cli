@@ -15,6 +15,9 @@ success_codes = [
     'SUCCESS_UPDATED'
 ]
 
+def boolean_string(b):
+    return { True: 'T', False: 'F' }[b]
+
 class GroupNotFoundException(Exception): pass
 
 def auth(user, password):
@@ -182,13 +185,13 @@ def find_group(base_uri, auth, stem, name):
             raise Exception(f'{code}: {msg}')
     return out
 
-def replace_members(base_uri, auth, group, members):
+def add_members(base_uri, auth, group, replace_existing, members):
     '''Replace the members of the grouper group {group} with {users}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/addMember/WsSampleAddMemberRest_json.txt
-    logger.info(f'replacing members of {group}')
+    logger.info(f'adding members to {group}')
     data = {
         "WsRestAddMemberRequest": {
-            "replaceAllExisting":"T",
+            "replaceAllExisting":boolean_string(replace_existing),
             "subjectLookups":[]
         }
     }
@@ -212,6 +215,42 @@ def replace_members(base_uri, auth, group, members):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsAddMemberResults'
+    if results_key in out:
+        code = out[results_key]['resultMetadata']['resultCode']
+        if code not in success_codes:
+            msg = out[results_key]['resultMetadata']['resultMessage']
+            raise Exception(f'{code}: {msg}')
+    return out
+
+def delete_members(base_uri, auth, group, members):
+    '''Delete {members} of the grouper group {group}.'''
+    # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/addMember/WsSampleAddMemberRest_json.txt
+    logger.info(f'deleting members from {group}')
+    data = {
+        "WsRestDeleteMemberRequest": {
+            "subjectLookups":[]
+        }
+    }
+    for member in members:
+        if type(member) == int or member.isalpha():
+            # UUID
+            member_key = 'subjectId'
+        else:
+            # e.g. group path id
+            member_key = 'subjectIdentifier'
+        data['WsRestDeleteMemberRequest']['subjectLookups'].append(
+            {member_key:member}
+        )
+    r = requests.put(f'{base_uri}/groups/{group}/members',
+        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
+    )
+    out = r.json()
+    problem_key = 'WsRestResultProblem'
+    if problem_key in out:
+        logger.error(f'{problem_key} in output')
+        meta = out[problem_key]['resultMetadata']
+        raise Exception(meta)
+    results_key = 'WsDeleteMemberResults'
     if results_key in out:
         code = out[results_key]['resultMetadata']['resultCode']
         if code not in success_codes:

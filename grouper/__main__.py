@@ -91,12 +91,20 @@ def main():
     create_group.add_argument('-f', dest='folder', help='Folder')
     create_parser.add_argument('-D', dest='description', help='Description')
     
-    replace_parser = subparsers.add_parser('replace',
-        help='Replace group members')
-    replace_parser.add_argument('-g', dest='group', required=True, help='Group')
-    replace_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
+    add_parser = subparsers.add_parser('add', help='Add group members')
+    add_parser.add_argument('-r', dest='replace_existing', default=False,
+        help='Replace existing members.')
+    add_parser.add_argument('-g', dest='group', required=True, help='Group')
+    add_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
         help='File with members, one per line')
-    replace_parser.add_argument('members', metavar='campus-uid', nargs='*',
+    add_parser.add_argument('members', metavar='campus-uid', nargs='*',
+        help='a uid or a group path id')
+
+    delete_parser = subparsers.add_parser('delete', help='Delete group members')
+    delete_parser.add_argument('-g', dest='group', required=True, help='Group')
+    delete_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
+        help='File with members, one per line')
+    delete_parser.add_argument('members', metavar='campus-uid', nargs='*',
         help='a uid or a group path id')
 
     attr_parser = subparsers.add_parser('attribute',
@@ -134,8 +142,7 @@ def main():
     # take action
     if args.command == 'list':
         try:
-            members = grouper.get_members(base_uri, grouper_auth,
-                args.group)
+            members = grouper.get_members(base_uri, grouper_auth, args.group)
         except grouper.GroupNotFoundException as e:
             logger.debug(str(e))
             sys.exit(1)
@@ -148,12 +155,19 @@ def main():
         elif args.group:
             out = grouper.create_group(base_uri, grouper_auth, args.group,
                 args.name, args.description)
-    elif args.command == 'replace':
+    elif args.command == 'add':
         members = set(args.members) if args.members else set()
         if args.input:
             members |= set(read_member_file(args.input))
         logger.info(members)
-        grouper.replace_members(base_uri, grouper_auth, args.group, members)
+        grouper.add_members(base_uri, grouper_auth, args.group,
+            args.replace_existing, members)
+    elif args.command == 'delete':
+        members = set(args.members) if args.members else set()
+        if args.input:
+            members |= set(read_member_file(args.input))
+        logger.info(members)
+        grouper.delete_members(base_uri, grouper_auth, args.group, members)
     elif args.command == 'attribute':
         if args.attr_add:
             attribute = args.attr_add

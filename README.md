@@ -6,16 +6,17 @@ Requires Grouper API credentials.
 
 ```
 usage: grouper [-h] [-B BASE_URI] [-C CREDENTIALS] [-v] [-d]
-               {list,find,create,add,attribute} ...
+               {list,find,create,add,delete,attribute} ...
 
 Manage Grouper groups.
 
 positional arguments:
-  {list,find,create,add,attribute}
+  {list,find,create,add,delete,attribute}
     list                List group and folder members
     find                Find a group
     create              Create a group or folder
-    add                 Replace group members
+    add                 Add group members
+    delete              Delete group members
     attribute           Add or remove an attribute on a group
 
 optional arguments:
@@ -67,14 +68,14 @@ grouper create -g ${class_prefix}-non-enrolled -n Non-enrolled
 grouper create -g ${class_prefix}-admins       -n Admins
 grouper create -g ${class_prefix}-all          -n "Test Stat C8"
 
-# replace group members -- uids
-grouper replace -g ${class_prefix}-enrolled 12345 23456
-grouper replace -g ${class_prefix}-enrolled `cat enrolled.txt`
-grouper replace -g ${class_prefix}-enrolled 12345 23456 -i /path/to/more/uids.txt
-cat /path/to/uids.txt | grouper replace -g ${class_prefix}-enrolled -i -
+# add group members -- uids
+grouper add -g ${class_prefix}-enrolled 12345 23456
+grouper add -g ${class_prefix}-enrolled `cat enrolled.txt`
+grouper add -g ${class_prefix}-enrolled 12345 23456 -i /path/to/more/uids.txt
+cat /path/to/uids.txt | grouper add -g ${class_prefix}-enrolled -i -
 
-# replace group members -- path ids of other groups
-grouper replace -g ${class_prefix}-all \
+# add group members -- path ids of other groups
+grouper add -g ${class_prefix}-all \
 	${class_prefix}-enrolled \
 	${class_prefix}-waitlisted \
 	${class_prefix}-gsis \
