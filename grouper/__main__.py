@@ -77,8 +77,7 @@ def main():
         help='List group and folder members')
     list_parser.add_argument('-g', dest='group', required=True, help='Group')
 
-    find_parser = subparsers.add_parser('find',
-        help='Find a group')
+    find_parser = subparsers.add_parser('find', help='Find a group')
     find_parser.add_argument('-f', dest='folder', required=True, help='Folder')
     find_parser.add_argument('-g', dest='group', required=True, help='Group')
 
@@ -92,7 +91,7 @@ def main():
     create_parser.add_argument('-D', dest='description', help='Description')
     
     add_parser = subparsers.add_parser('add', help='Add group members')
-    add_parser.add_argument('-r', dest='replace_existing', default=False,
+    add_parser.add_argument('-r', dest='replace_existing', action='store_true',
         help='Replace existing members.')
     add_parser.add_argument('-g', dest='group', required=True, help='Group')
     add_parser.add_argument('-i', dest='input', type=argparse.FileType('r'),
