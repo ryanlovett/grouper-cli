@@ -1,15 +1,9 @@
 #!/usr/bin/python3
 # vim: set et sw=4 ts=4:
 
-# Given a base folder within CalGroups, and a course specified by an academic
-# term, department, and course number:
-#  - fetch the course roster from sis
-#  - create a folder structure and groups in CalGroups under the base folder
-#  - replace members of the calgroup roster with those from the sis
+# Requires Grouper API credentials.
 
-# Requires SIS and CalGroups API credentials.
-
-# CalGroups API
+# Grouper/CalGroups API
 # https://calnetweb.berkeley.edu/calnet-technologists/calgroups-integration/calgroups-api-information
 
 import argparse
@@ -61,7 +55,6 @@ def read_member_file(f):
         
 ## main
 def main():
-    
     parser = argparse.ArgumentParser(description="Manage Grouper groups.")
     parser.add_argument('-B', dest='base_uri', help='Grouper base uri')
     parser.add_argument('-C', dest='credentials',
