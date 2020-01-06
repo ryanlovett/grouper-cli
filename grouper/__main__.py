@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import sys
 
 from grouper import grouper
@@ -52,13 +53,16 @@ def read_member_file(f):
             members.append(val)
         line = f.readline()
     return members
-        
+
+def credentials_file():
+    return os.path.join(pathlib.Path.home(), '.grouper.json')
+
 ## main
 def main():
     parser = argparse.ArgumentParser(description="Manage Grouper groups.")
     parser.add_argument('-B', dest='base_uri', help='Grouper base uri')
     parser.add_argument('-C', dest='credentials',
-        default='.grouper.json', help='Credentials file')
+        default=credentials_file(), help='Credentials file')
     parser.add_argument('-v', dest='verbose', action='store_true',
         help='Be verbose')
     parser.add_argument('-d', dest='debug', action='store_true',
