@@ -55,14 +55,17 @@ def read_member_file(f):
     return members
 
 def credentials_file():
-    return os.path.join(pathlib.Path.home(), '.grouper.json')
+    '''Default path to credentials file.'''
+    return pathlib.PurePath.joinpath(pathlib.Path.home(), '.grouper.json')
 
 ## main
 def main():
+    default_creds_file = str(credentials_file())
+
     parser = argparse.ArgumentParser(description="Manage Grouper groups.")
     parser.add_argument('-B', dest='base_uri', help='Grouper base uri')
     parser.add_argument('-C', dest='credentials',
-        default=credentials_file(), help='Credentials file')
+        default=default_creds_file, help='Credentials file')
     parser.add_argument('-v', dest='verbose', action='store_true',
         help='Be verbose')
     parser.add_argument('-d', dest='debug', action='store_true',
@@ -130,7 +133,8 @@ def main():
 
     # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
     # read credentials from credentials file
-    credentials = read_credentials(args.credentials)
+    credspath = pathlib.PosixPath(args.credentials).expanduser()
+    credentials = read_credentials(credspath)
     grouper_auth = grouper.auth(
         credentials['grouper_user'], credentials['grouper_pass']
     )
