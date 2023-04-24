@@ -8,7 +8,6 @@ setuptools.setup(
 	author='Ryan Lovett',
 	author_email='rylo@berkeley.edu',
 	packages=setuptools.find_packages(),
-	python_requires='>=3.5.*',
 	install_requires=[
 	  'requests'
 	],
