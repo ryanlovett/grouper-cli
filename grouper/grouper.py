@@ -48,6 +48,14 @@ def get_members(base_uri, auth, group):
             return map(lambda x: x['id'], value)
     return []
 
+def raise_if_results_error(results_key, out):
+    if results_key not in out:
+        return
+    code = out[results_key]['resultMetadata']['resultCode']
+    if code not in success_codes:
+        msg = out[results_key]['resultMetadata']['resultMessage']
+        raise Exception(f'{code}: {results_key}: {msg}')
+
 def create_stem(base_uri, auth, stem, name, description=''):
     '''Create a stem.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/stemSave/WsSampleStemSaveRestLite_json.txt
@@ -74,11 +82,7 @@ def create_stem(base_uri, auth, stem, name, description=''):
         msg = out['WsRestResultProblem']['resultMetadata']['resultMessage']
         raise Exception(msg)
     results_key = 'WsStemSaveLiteResult'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def create_group(base_uri, auth, group, name, description=''):
@@ -109,13 +113,7 @@ def create_group(base_uri, auth, group, name, description=''):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsGroupSaveLiteResult'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            logger.error(f'Error creating group: {group} {data}')
-            raise Exception(f'{code}: {msg}')
-    return out
+    raise_if_results_error(results_key, out)
 
 def create_composite_group(auth, group, name, left_group, right_group):
     '''Create a new group as a composite of {left_group} and {right_group}.'''
@@ -147,11 +145,7 @@ def create_composite_group(auth, group, name, left_group, right_group):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsGroupSaveLiteResult'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def delete_group(base_uri, auth, group):
@@ -170,14 +164,10 @@ def delete_group(base_uri, auth, group):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsStemDeleteLiteResult'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            logger.error(f'Error creating group: {group} {data}')
+    raise_if_results_error(results_key, out)
 
 def find_group(base_uri, auth, stem, name):
-    '''Create a group.'''
+    '''Find a group.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/groupSave/WsSampleGroupSaveRestLite_json.txt
     logger.info(f'finding group {stem}:{name}')
 
@@ -199,12 +189,7 @@ def find_group(base_uri, auth, stem, name):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsFindGroupsResults'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            logger.error(f'Error creating group: {group} {data}')
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def add_members(base_uri, auth, group, replace_existing, members):
@@ -237,11 +222,7 @@ def add_members(base_uri, auth, group, replace_existing, members):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsAddMemberResults'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def delete_members(base_uri, auth, group, members):
@@ -273,11 +254,7 @@ def delete_members(base_uri, auth, group, members):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsDeleteMemberResults'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=''):
@@ -306,11 +283,7 @@ def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsAssignAttributesLiteResults'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
 
 def group_has_attr(base_uri, auth, group, attribute):
@@ -353,9 +326,5 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
         meta = out[problem_key]['resultMetadata']
         raise Exception(meta)
     results_key = 'WsGetAttributeAssignmentsResults'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
-        if code not in success_codes:
-            msg = out[results_key]['resultMetadata']['resultMessage']
-            raise Exception(f'{code}: {msg}')
+    raise_if_results_error(results_key, out)
     return out
