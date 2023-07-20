@@ -154,6 +154,28 @@ def create_composite_group(auth, group, name, left_group, right_group):
             raise Exception(f'{code}: {msg}')
     return out
 
+def delete_group(base_uri, auth, group):
+    '''Delete a group.'''
+    # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/stemDelete/WsSampleStemDeleteRestLite_json.txt
+    logger.info(f'deleting group {group}')
+
+    # the very last stem element
+    r = requests.delete(f'{base_uri}/stems/{group}',
+        auth=auth
+    )
+    out = r.json()
+    problem_key = 'WsRestResultProblem'
+    if problem_key in out:
+        logger.error(f'{problem_key} in output')
+        meta = out[problem_key]['resultMetadata']
+        raise Exception(meta)
+    results_key = 'WsStemDeleteLiteResult'
+    if results_key in out:
+        code = out[results_key]['resultMetadata']['resultCode']
+        if code not in ['SUCCESS_INSERTED', 'SUCCESS_NO_CHANGES_NEEDED']:
+            msg = out[results_key]['resultMetadata']['resultMessage']
+            logger.error(f'Error creating group: {group} {data}')
+
 def find_group(base_uri, auth, stem, name):
     '''Create a group.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/groupSave/WsSampleGroupSaveRestLite_json.txt
