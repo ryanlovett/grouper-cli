@@ -114,6 +114,15 @@ def main():
     attr_group.add_argument('-r', dest='attr_remove', help='Remove attribute.')
     attr_group.add_argument('-c', dest='attr_check', help='Check attribute.')
 
+    subject_parser = subparsers.add_parser('subject',
+        help='Get information about a subject (member)')
+    subject_parser.add_argument('-s', dest='subject_id', required=True,
+        help='Subject ID (e.g., 1559801)')
+    subject_parser.add_argument('--source-id', dest='source_id', default='ldap',
+        help='Source ID (default: ldap)')
+    subject_parser.add_argument('-J', '--json', dest='json_output', action='store_true',
+        help='Output full subject information as JSON (default: show group names only)')
+
     args = parser.parse_args()
 
     # set verbosity
@@ -194,3 +203,19 @@ def main():
             out = grouper.group_has_attr(base_uri, grouper_auth, args.group,
                 attribute)
             print(out)
+    elif args.command == 'subject':
+        try:
+            if args.json_output:
+                # Get full subject information and output as JSON
+                subject_info = grouper.get_subject_info(base_uri, grouper_auth,
+                    args.subject_id, args.source_id)
+                print(json.dumps(subject_info, indent=2))
+            else:
+                # Default: just get and print the group names (one per line)
+                groups = grouper.get_subject_memberships(base_uri, grouper_auth,
+                    args.subject_id, args.source_id)
+                for group in groups:
+                    print(group)
+        except Exception as e:
+            logger.error(f"Error getting subject information: {e}")
+            sys.exit(1)

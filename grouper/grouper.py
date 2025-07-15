@@ -328,3 +328,50 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
     results_key = 'WsGetAttributeAssignmentsResults'
     raise_if_results_error(results_key, out)
     return out
+
+def get_subject_memberships(base_uri, auth, subject_id, source_id='ldap'):
+    '''Get the groups that a subject (member) belongs to.'''
+    # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getMemberships/WsSampleGetMembershipsRestLite2_withInput_json.txt
+    logger.info(f'getting memberships for subject {subject_id}')
+    
+    # Build the URL with subject ID
+    url = f'{base_uri}/subjects/{subject_id}/memberships'
+    
+    r = requests.get(url, auth=auth, headers={'Content-type':'text/x-json'})
+    out = r.json()
+    
+    problem_key = 'WsRestResultProblem'
+    if problem_key in out:
+        logger.error(f'{problem_key} in output')
+        meta = out[problem_key]['resultMetadata']
+        raise Exception(meta)
+    
+    results_key = 'WsGetMembershipsResults'
+    raise_if_results_error(results_key, out)
+    
+    # Extract group names from the response
+    groups = []
+    if results_key in out and 'wsGroups' in out[results_key]:
+        for group in out[results_key]['wsGroups']:
+            groups.append(group['name'])
+    
+    logger.info(f'subject {subject_id} is member of {len(groups)} groups')
+    return groups
+
+def get_subject_info(base_uri, auth, subject_id, source_id='ldap'):
+    '''Get information about a subject including their group memberships.'''
+    logger.info(f'getting subject information for {subject_id}')
+    
+    try:
+        # Get the group memberships for this subject
+        memberships = get_subject_memberships(base_uri, auth, subject_id, source_id)
+        
+        return {
+            'subject_id': subject_id,
+            'source_id': source_id,
+            'group_memberships': memberships,
+            'membership_count': len(memberships)
+        }
+    except Exception as e:
+        logger.error(f'Error getting subject info for {subject_id}: {e}')
+        raise e
