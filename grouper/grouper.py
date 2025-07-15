@@ -115,7 +115,7 @@ def create_group(base_uri, auth, group, name, description=''):
     results_key = 'WsGroupSaveLiteResult'
     raise_if_results_error(results_key, out)
 
-def create_composite_group(auth, group, name, left_group, right_group):
+def create_composite_group(base_uri, auth, group, name, left_group, right_group):
     '''Create a new group as a composite of {left_group} and {right_group}.'''
     logger.info(f'creating composite {group}')
     data = {
