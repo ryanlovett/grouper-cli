@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
 	name='grouper',
-	version='0.2',
+	version='0.3',
 	description='Administer Grouper groups.',
 	url='https://github.com/ryanlovett/grouper',
 	author='Ryan Lovett',
