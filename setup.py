@@ -1,8 +1,11 @@
 import setuptools
 
+# Import version from the package
+from grouper import __version__
+
 setuptools.setup(
 	name='grouper',
-	version='0.3',
+	version=__version__,
 	description='Administer Grouper groups.',
 	url='https://github.com/ryanlovett/grouper',
 	author='Ryan Lovett',
@@ -29,7 +32,6 @@ setuptools.setup(
 	python_requires='>=3.6',
 	classifiers=[
 		'Development Status :: 4 - Beta',
-		'Intended Audience :: System Administrators',
 		'License :: OSI Approved :: MIT License',
 		'Programming Language :: Python :: 3',
 		'Programming Language :: Python :: 3.6',
@@ -39,6 +41,5 @@ setuptools.setup(
 		'Programming Language :: Python :: 3.10',
 		'Programming Language :: Python :: 3.11',
 		'Programming Language :: Python :: 3.12',
-		'Topic :: System :: Systems Administration :: Authentication/Directory',
 	],
 )
