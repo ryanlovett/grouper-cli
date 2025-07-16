@@ -1,11 +1,13 @@
-# vim:set et ts=4 sw=4:
+# This file contains legacy functions for compatibility with older downstream
+# tools. Internally the functions use the newer GrouperClient.
 
 import json
 import logging
 
 import requests
 
-# logging
+from .client import GrouperClient, GrouperException, GroupNotFoundException, GrouperAPIError
+
 logger = logging.getLogger('grouper')
 
 success_codes = [
@@ -18,8 +20,6 @@ success_codes = [
 def boolean_string(b):
     return { True: 'T', False: 'F' }[b]
 
-class GroupNotFoundException(Exception): pass
-
 def auth(user, password):
     return requests.auth.HTTPBasicAuth(user, password)
 
@@ -27,24 +27,25 @@ def get_members(base_uri, auth, group):
     '''Get group members.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getMembers/WsSampleGetMembersRestLite_json.txt
     logger.debug(f'get members of {group}')
-    r = requests.get(f'{base_uri}/groups/{group}/members',
-        auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    if 'WsRestResultProblem' in out:
-        msg = out['WsRestResultProblem']['resultMetadata']['resultMessage']
+    
+    client = GrouperClient(base_uri, auth)
+    response = client._make_request('GET', f'/groups/{group}/members')
+    
+    if 'WsRestResultProblem' in response:
+        msg = response['WsRestResultProblem']['resultMetadata']['resultMessage']
         raise Exception(msg)
+    
     results_key = 'WsGetMembersLiteResult'
-    if results_key in out:
-        code = out[results_key]['resultMetadata']['resultCode']
+    if results_key in response:
+        code = response[results_key]['resultMetadata']['resultCode']
         if code == 'GROUP_NOT_FOUND':
-            msg = out[results_key]['resultMetadata']['resultMessage']
+            msg = response[results_key]['resultMetadata']['resultMessage']
             raise GroupNotFoundException(msg)
         elif code not in ['SUCCESS']:
-            msg = out[results_key]['resultMetadata']['resultMessage']
+            msg = response[results_key]['resultMetadata']['resultMessage']
             raise Exception(f'{code}: {msg}')
-        if 'wsSubjects' in out[results_key]: # there are members
-            value = out[results_key]['wsSubjects']
+        if 'wsSubjects' in response[results_key]: # there are members
+            value = response[results_key]['wsSubjects']
             return map(lambda x: x['id'], value)
     return []
 
@@ -61,6 +62,8 @@ def create_stem(base_uri, auth, stem, name, description=''):
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/stemSave/WsSampleStemSaveRestLite_json.txt
     logger.info(f'creating stem {stem}')
 
+    client = GrouperClient(base_uri, auth)
+    
     # the very last stem element
     extension = stem.split(':')[-1]
     # provide a minimal description
@@ -74,22 +77,18 @@ def create_stem(base_uri, auth, stem, name, description=''):
             "displayExtension": name,
         }
     }
-    r = requests.post(f'{base_uri}/stems/{stem}',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    if 'WsRestResultProblem' in out:
-        msg = out['WsRestResultProblem']['resultMetadata']['resultMessage']
-        raise Exception(msg)
-    results_key = 'WsStemSaveLiteResult'
-    raise_if_results_error(results_key, out)
-    return out
+    
+    response = client._make_request('POST', f'/stems/{stem}', data)
+    client._check_response_errors(response, 'WsStemSaveLiteResult')
+    return response
 
 def create_group(base_uri, auth, group, name, description=''):
     '''Create a group.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/groupSave/WsSampleGroupSaveRestLite_json.txt
     logger.info(f'creating group {group}')
 
+    client = GrouperClient(base_uri, auth)
+    
     # the very last stem element
     extension = group.split(':')[-1]
     # provide a minimal description
@@ -103,21 +102,17 @@ def create_group(base_uri, auth, group, name, description=''):
             "displayExtension": name,
         }
     }
-    r = requests.post(f'{base_uri}/groups/{group}',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsGroupSaveLiteResult'
-    raise_if_results_error(results_key, out)
+    
+    response = client._make_request('POST', f'/groups/{group}', data)
+    client._check_response_errors(response, 'WsGroupSaveLiteResult')
+    return response
 
 def create_composite_group(base_uri, auth, group, name, left_group, right_group):
     '''Create a new group as a composite of {left_group} and {right_group}.'''
     logger.info(f'creating composite {group}')
+    
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestGroupSaveRequest": {
             "wsGroupToSaves":[{
@@ -135,42 +130,28 @@ def create_composite_group(base_uri, auth, group, name, left_group, right_group)
             }]
         }
     }
-    r = requests.post(f'{base_uri}/groups/{group}', data=json.dumps(data),
-        auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsGroupSaveLiteResult'
-    raise_if_results_error(results_key, out)
-    return out
+    
+    response = client._make_request('POST', f'/groups/{group}', data)
+    client._check_response_errors(response, 'WsGroupSaveLiteResult')
+    return response
 
 def delete_group(base_uri, auth, group):
     '''Delete a group.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/stemDelete/WsSampleStemDeleteRestLite_json.txt
     logger.info(f'deleting group {group}')
 
-    # the very last stem element
-    r = requests.delete(f'{base_uri}/stems/{group}',
-        auth=auth
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsStemDeleteLiteResult'
-    raise_if_results_error(results_key, out)
+    client = GrouperClient(base_uri, auth)
+    response = client._make_request('DELETE', f'/stems/{group}')
+    client._check_response_errors(response, 'WsStemDeleteLiteResult')
+    return response
 
 def find_group(base_uri, auth, stem, name):
     '''Find a group.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/groupSave/WsSampleGroupSaveRestLite_json.txt
     logger.info(f'finding group {stem}:{name}')
 
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestFindGroupsLiteRequest": {
             "queryFilterType": "FIND_BY_GROUP_NAME_EXACT",
@@ -178,24 +159,19 @@ def find_group(base_uri, auth, stem, name):
             "groupName": name,
         }
     }
-    r = requests.post(f'{base_uri}/groups',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    print(out)
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsFindGroupsResults'
-    raise_if_results_error(results_key, out)
-    return out
+    
+    response = client._make_request('POST', '/groups', data)
+    print(response)  # Keep original debug output
+    client._check_response_errors(response, 'WsFindGroupsResults')
+    return response
 
 def add_members(base_uri, auth, group, replace_existing, members):
     '''Replace the members of the grouper group {group} with {users}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/addMember/WsSampleAddMemberRest_json.txt
     logger.info(f'adding members to {group}')
+    
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestAddMemberRequest": {
             "replaceAllExisting":boolean_string(replace_existing),
@@ -212,23 +188,18 @@ def add_members(base_uri, auth, group, replace_existing, members):
         data['WsRestAddMemberRequest']['subjectLookups'].append(
             {member_key:member}
         )
-    r = requests.put(f'{base_uri}/groups/{group}/members',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsAddMemberResults'
-    raise_if_results_error(results_key, out)
-    return out
+    
+    response = client._make_request('PUT', f'/groups/{group}/members', data)
+    client._check_response_errors(response, 'WsAddMemberResults')
+    return response
 
 def delete_members(base_uri, auth, group, members):
     '''Delete {members} of the grouper group {group}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/addMember/WsSampleAddMemberRest_json.txt
     logger.info(f'deleting members from {group}')
+    
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestDeleteMemberRequest": {
             "subjectLookups":[]
@@ -244,23 +215,18 @@ def delete_members(base_uri, auth, group, members):
         data['WsRestDeleteMemberRequest']['subjectLookups'].append(
             {member_key:member}
         )
-    r = requests.put(f'{base_uri}/groups/{group}/members',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsDeleteMemberResults'
-    raise_if_results_error(results_key, out)
-    return out
+    
+    response = client._make_request('PUT', f'/groups/{group}/members', data)
+    client._check_response_errors(response, 'WsDeleteMemberResults')
+    return response
 
 def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=''):
     '''Operate assigned attribute {attribute} on the grouper group {group}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/assignAttributesWithValue/WsSampleAssignAttributesWithValueRestLite_json.txt
     logger.info(f'assigning attributes to {group}')
+    
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestAssignAttributesLiteRequest": {
             "attributeAssignOperation":attr_op,
@@ -273,18 +239,9 @@ def assign_attribute(base_uri, auth, group, attribute, attr_op, value_op, value=
         data["WsRestAssignAttributesLiteRequest"]["valueSystem"] = value
         data["WsRestAssignAttributesLiteRequest"]["attributeAssignValueOperation"] = value_op
 
-    r = requests.post(f'{base_uri}/attributeAssignments',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsAssignAttributesLiteResults'
-    raise_if_results_error(results_key, out)
-    return out
+    response = client._make_request('POST', '/attributeAssignments', data)
+    client._check_response_errors(response, 'WsAssignAttributesLiteResults')
+    return response
 
 def group_has_attr(base_uri, auth, group, attribute):
     out = get_assign_attribute(base_uri, auth, attribute, group=group)
@@ -299,6 +256,9 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
     '''Operate assigned attribute {attribute} on the grouper group {group}.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getAttributeAssignments/WsSampleGetAttributeAssignmentsRestLite_json.txt
     logger.info(f'getting attribute {attribute} from {group}')
+    
+    client = GrouperClient(base_uri, auth)
+    
     data = {
         "WsRestGetAttributeAssignmentsLiteRequest": {
             "wsAttributeDefNameName":attribute,
@@ -316,43 +276,24 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
         params["wsOwnerStemName"] = stem
     data["WsRestGetAttributeAssignmentsLiteRequest"].update(params)
 
-    r = requests.post(f'{base_uri}/attributeAssignments',
-        data=json.dumps(data), auth=auth, headers={'Content-type':'text/x-json'}
-    )
-    out = r.json()
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    results_key = 'WsGetAttributeAssignmentsResults'
-    raise_if_results_error(results_key, out)
-    return out
+    response = client._make_request('POST', '/attributeAssignments', data)
+    client._check_response_errors(response, 'WsGetAttributeAssignmentsResults')
+    return response
 
 def get_subject_memberships(base_uri, auth, subject_id, source_id='ldap'):
     '''Get the groups that a subject (member) belongs to.'''
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getMemberships/WsSampleGetMembershipsRestLite2_withInput_json.txt
     logger.info(f'getting memberships for subject {subject_id}')
     
-    # Build the URL with subject ID
-    url = f'{base_uri}/subjects/{subject_id}/memberships'
-    
-    r = requests.get(url, auth=auth, headers={'Content-type':'text/x-json'})
-    out = r.json()
-    
-    problem_key = 'WsRestResultProblem'
-    if problem_key in out:
-        logger.error(f'{problem_key} in output')
-        meta = out[problem_key]['resultMetadata']
-        raise Exception(meta)
-    
-    results_key = 'WsGetMembershipsResults'
-    raise_if_results_error(results_key, out)
+    client = GrouperClient(base_uri, auth)
+    response = client._make_request('GET', f'/subjects/{subject_id}/memberships')
+    client._check_response_errors(response, 'WsGetMembershipsResults')
     
     # Extract group names from the response
     groups = []
-    if results_key in out and 'wsGroups' in out[results_key]:
-        for group in out[results_key]['wsGroups']:
+    results_key = 'WsGetMembershipsResults'
+    if results_key in response and 'wsGroups' in response[results_key]:
+        for group in response[results_key]['wsGroups']:
             groups.append(group['name'])
     
     logger.info(f'subject {subject_id} is member of {len(groups)} groups')
