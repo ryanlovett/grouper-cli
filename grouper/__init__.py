@@ -19,4 +19,4 @@ The legacy API internally uses the modern client for improved performance
 and error handling while maintaining full backward compatibility.
 """
 
-__version__ = "0.4"
+__version__ = "0.5"
