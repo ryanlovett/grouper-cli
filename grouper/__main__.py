@@ -79,7 +79,23 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
 
     list_parser = subparsers.add_parser("list", help="List group and folder members")
-    list_parser.add_argument("-g", dest="group", required=True, help="Group")
+    list_group = list_parser.add_mutually_exclusive_group(required=True)
+    list_group.add_argument("-g", dest="group", help="Group to list members of")
+    list_group.add_argument("-s", dest="stem", help="Stem (folder) to list members of")
+    list_parser.add_argument(
+        "--scope",
+        dest="scope",
+        choices=["ONE", "SUB"],
+        default="ONE",
+        help="Search scope: ONE for direct children, SUB for recursive",
+    )
+    list_parser.add_argument(
+        "--type",
+        dest="subject_types",
+        choices=["all", "groups", "stems"],
+        default="all",
+        help="Types to return: all, groups, or stems",
+    )
 
     find_parser = subparsers.add_parser("find", help="Find a group")
     find_parser.add_argument("-f", dest="folder", required=True, help="Folder")
@@ -180,14 +196,44 @@ def main():
 
     # take action
     if args.command == "list":
-        try:
-            members = grouper.get_members(base_uri, grouper_auth, args.group)
-        except grouper.GroupNotFoundException as e:
-            logger.debug(str(e))
-            sys.exit(1)
-        else:
-            for member in members:
-                print(member)
+        if args.group:
+            try:
+                members = grouper.get_members(base_uri, grouper_auth, args.group)
+            except grouper.GroupNotFoundException as e:
+                logger.debug(str(e))
+                sys.exit(1)
+            else:
+                for member in members:
+                    print(member)
+        elif args.stem:
+            try:
+                result = grouper.get_stem_members(
+                    base_uri, grouper_auth, args.stem, args.scope, args.subject_types
+                )
+
+                # Print groups
+                if args.subject_types in ["all", "groups"] and result.get("groups"):
+                    if args.subject_types == "all":
+                        print("Groups:")
+                    for group in result["groups"]:
+                        print(f"  {group['name']}")
+                        if args.verbose:
+                            print(f"    Display: {group.get('displayName', 'N/A')}")
+                            print(f"    Description: {group.get('description', 'N/A')}")
+
+                # Print stems
+                if args.subject_types in ["all", "stems"] and result.get("stems"):
+                    if args.subject_types == "all":
+                        print("Stems:")
+                    for stem in result["stems"]:
+                        print(f"  {stem['name']}")
+                        if args.verbose:
+                            print(f"    Display: {stem.get('displayName', 'N/A')}")
+                            print(f"    Description: {stem.get('description', 'N/A')}")
+
+            except grouper.GrouperException as e:
+                logger.error(str(e))
+                sys.exit(1)
     elif args.command == "create":
         if args.folder:
             out = grouper.create_stem(

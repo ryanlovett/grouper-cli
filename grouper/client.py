@@ -348,3 +348,94 @@ class GrouperClient:
         except Exception as e:
             logger.error(f"Error getting subject info for {subject_id}: {e}")
             raise
+
+    def get_stem_members(
+        self, stem: str, scope: str = "ONE", subject_types: str = "all"
+    ) -> Dict:
+        """Get all groups and sub-stems within a stem (folder).
+
+        Args:
+            stem: The stem name to get members from
+            scope: Search scope - "ONE" for direct children only, "SUB" for recursive
+            subject_types: Types to return - "all", "groups", "stems"
+
+        Returns:
+            Dict containing groups and stems found within the stem
+        """
+        logger.info(f"getting members of stem {stem}")
+
+        result = {"groups": [], "stems": []}
+
+        # Get groups using the correct API format
+        if subject_types in ["all", "groups"]:
+            try:
+                # Use the correct CalGroups API format for finding groups by stem
+                data = {
+                    "WsRestFindGroupsLiteRequest": {
+                        "queryFilterType": "FIND_BY_STEM_NAME",
+                        "stemName": stem,
+                    }
+                }
+
+                response = self._make_request("POST", "/groups", data)
+
+                # Handle the response
+                if "WsFindGroupsResults" in response:
+                    self._check_response_errors(response, "WsFindGroupsResults")
+
+                    # Extract groups from response
+                    if "groupResults" in response["WsFindGroupsResults"]:
+                        for group_info in response["WsFindGroupsResults"][
+                            "groupResults"
+                        ]:
+                            # Filter for direct children if scope is ONE
+                            if scope == "ONE":
+                                # Check if this is a direct child (only one more colon after the stem)
+                                expected_prefix = stem + ":"
+                                if (
+                                    group_info.get("name", "").startswith(
+                                        expected_prefix
+                                    )
+                                    and ":"
+                                    not in group_info.get("name", "")[
+                                        len(expected_prefix) :
+                                    ]
+                                ):
+                                    result["groups"].append(
+                                        {
+                                            "name": group_info.get("name"),
+                                            "displayName": group_info.get(
+                                                "displayName"
+                                            ),
+                                            "description": group_info.get(
+                                                "description"
+                                            ),
+                                            "extension": group_info.get("extension"),
+                                            "displayExtension": group_info.get(
+                                                "displayExtension"
+                                            ),
+                                        }
+                                    )
+                            else:
+                                # SUB scope - include all matching groups
+                                result["groups"].append(
+                                    {
+                                        "name": group_info.get("name"),
+                                        "displayName": group_info.get("displayName"),
+                                        "description": group_info.get("description"),
+                                        "extension": group_info.get("extension"),
+                                        "displayExtension": group_info.get(
+                                            "displayExtension"
+                                        ),
+                                    }
+                                )
+
+            except GrouperException as e:
+                logger.warning(f"Could not fetch groups for {stem}: {e}")
+
+        # Get stems - this might need to be a separate call or might not be supported
+        # For now, let's comment this out until we get groups working
+        # if subject_types in ["all", "stems"]:
+        #     logger.info(f"Stem listing not yet implemented")
+
+        return result

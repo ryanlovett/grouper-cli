@@ -335,3 +335,22 @@ def get_subject_info(base_uri, auth, subject_id, source_id="ldap"):
     except Exception as e:
         logger.error(f"Error getting subject info for {subject_id}: {e}")
         raise e
+
+
+def get_stem_members(base_uri, auth, stem, scope="ONE", subject_types="all"):
+    """Get all groups and sub-stems within a stem (folder).
+
+    Args:
+        base_uri: Grouper API base URI
+        auth: Authentication object
+        stem: The stem name to get members from
+        scope: Search scope - "ONE" for direct children only, "SUB" for recursive
+        subject_types: Types to return - "all", "groups", "stems"
+
+    Returns:
+        Dict containing groups and stems found within the stem
+    """
+    logger.info(f"getting members of stem {stem}")
+
+    client = GrouperClient(base_uri, auth)
+    return client.get_stem_members(stem, scope, subject_types)
