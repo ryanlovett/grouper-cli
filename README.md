@@ -123,14 +123,48 @@ grouper subject -s 1559801 --source-id ldap --json
 Credentials
 -----------
 
-Supply the Grouper API credentials in a JSON file of the form:
+### Environment (.env) Files (Recommended)
+
+The recommended way to provide Grouper API credentials is using an environment file (`.env` format):
+
+```bash
+# .env (in your current directory)
+GROUPER_USER=your_username_here
+GROUPER_PASS=your_password_here
 ```
+
+See `example.env` for a template.
+
+**Default behavior:** The tool looks for `.env` in your current directory:
+```bash
+grouper list -g group:name
+```
+
+**Custom .env file:** You can specify a custom environment file using the `--env-file` option:
+```bash
+grouper --env-file /path/to/your/credentials.env list -g group:name
+```
+
+### JSON Files (Legacy)
+
+For backward compatibility, you can still use JSON credential files with the `-C` option:
+
+```json
 {
-	"grouper_user": "...",
-	"grouper_pass": "..."
+	"grouper_user": "your_username_here",
+	"grouper_pass": "your_password_here"
 }
 ```
-The default file is ./.grouper.json.
+
+Example usage:
+```bash
+grouper -C /path/to/credentials.json list -g group:name
+```
+
+**Migration from JSON credentials:** If you were previously using a JSON credentials file, you can either:
+1. Convert it to the new `.env` format in your current directory (recommended)
+2. Continue using the JSON file with the `-C` option
+3. Use the `--env-file` option to specify a custom `.env` file location
 
 Development
 -----------

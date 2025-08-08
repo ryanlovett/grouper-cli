@@ -13,6 +13,8 @@ import os
 import pathlib
 import sys
 
+from dotenv import load_dotenv
+
 from grouper import grouper
 
 # We use f-strings from python >= 3.6.
@@ -23,6 +25,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
 logger = logging.getLogger("grouper")
 
 secret_keys = ["grouper_user", "grouper_pass"]
+env_var_names = ["GROUPER_USER", "GROUPER_PASS"]
 
 
 def has_all_keys(d, keys):
@@ -42,6 +45,42 @@ def read_json_data(filename, required_keys):
     return data
 
 
+def read_credentials_from_dotenv(filename=None):
+    """Read credentials from environment variables or .env file.
+
+    Follows standard dotenv behavior:
+    1. Check existing environment variables first (GROUPER_USER, GROUPER_PASS)
+    2. If not found, load from .env file
+    3. Environment variables take precedence over .env file values
+
+    If filename is provided, loads that specific file.
+    If filename is None, looks for .env in current directory.
+    Returns a dict with credentials.
+    """
+    # Load .env file if specified or if default .env exists
+    if filename:
+        if not os.path.exists(filename):
+            raise Exception(f"No such file: {filename}")
+        load_dotenv(filename)
+    else:
+        # Only load .env if it exists (standard dotenv behavior)
+        if os.path.exists(".env"):
+            load_dotenv(".env")
+
+    # Get credentials from environment (either pre-existing or loaded from .env)
+    grouper_user = os.getenv("GROUPER_USER") or os.getenv("grouper_user")
+    grouper_pass = os.getenv("GROUPER_PASS") or os.getenv("grouper_pass")
+
+    if not grouper_user:
+        env_source = filename if filename else ".env file or environment variables"
+        raise Exception(f"Missing GROUPER_USER/grouper_user in {env_source}")
+    if not grouper_pass:
+        env_source = filename if filename else ".env file or environment variables"
+        raise Exception(f"Missing GROUPER_PASS/grouper_pass in {env_source}")
+
+    return {"grouper_user": grouper_user, "grouper_pass": grouper_pass}
+
+
 def read_credentials(filename, required_keys=secret_keys):
     """Read credentials from {filename}. Returns a dict."""
     return read_json_data(filename, required_keys)
@@ -59,19 +98,16 @@ def read_member_file(f):
     return members
 
 
-def credentials_file():
-    """Default path to credentials file."""
-    return pathlib.PurePath.joinpath(pathlib.Path.home(), ".grouper.json")
-
-
 ## main
 def main():
-    default_creds_file = str(credentials_file())
 
     parser = argparse.ArgumentParser(description="Manage Grouper groups.")
     parser.add_argument("-B", dest="base_uri", help="Grouper base uri")
+    parser.add_argument("-C", dest="credentials", help="JSON credentials file (legacy)")
     parser.add_argument(
-        "-C", dest="credentials", default=default_creds_file, help="Credentials file"
+        "--env-file",
+        dest="env_file",
+        help="Environment (.env) credentials file (default: .env in current directory)",
     )
     parser.add_argument("-v", dest="verbose", action="store_true", help="Be verbose")
     parser.add_argument("-d", dest="debug", action="store_true", help="Debug")
@@ -187,9 +223,21 @@ def main():
         sys.exit(1)
 
     # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
-    # read credentials from credentials file
-    credspath = pathlib.PosixPath(args.credentials).expanduser()
-    credentials = read_credentials(credspath)
+    # read credentials from either JSON file (legacy -C) or .env file (--env-file)
+    if args.credentials:
+        # Legacy JSON credentials file
+        credspath = pathlib.PosixPath(args.credentials).expanduser()
+        credentials = read_credentials(credspath)
+    else:
+        # New .env credentials file
+        if args.env_file:
+            # Specific .env file provided
+            credspath = pathlib.PosixPath(args.env_file).expanduser()
+            credentials = read_credentials_from_dotenv(credspath)
+        else:
+            # Use default dotenv behavior (.env in current directory)
+            credentials = read_credentials_from_dotenv()
+
     grouper_auth = grouper.auth(
         credentials["grouper_user"], credentials["grouper_pass"]
     )

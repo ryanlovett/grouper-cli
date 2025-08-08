@@ -11,7 +11,7 @@ setuptools.setup(
     author="Ryan Lovett",
     author_email="rylo@berkeley.edu",
     packages=setuptools.find_packages(),
-    install_requires=["requests"],
+    install_requires=["requests", "python-dotenv"],
     extras_require={
         "dev": [
             "unittest-xml-reporting",  # For CI/CD XML test reports
