@@ -12,9 +12,14 @@ import os
 import pathlib
 import sys
 
-from dotenv import load_dotenv
-
 from grouper import grouper
+from grouper.utils import (
+    read_json_data,
+    load_dotenv_file,
+    read_grouper_credentials,
+    read_credentials,
+    read_member_file,
+)
 
 # We use f-strings from python >= 3.6.
 assert sys.version_info >= (3, 6)
@@ -22,79 +27,6 @@ assert sys.version_info >= (3, 6)
 # logging
 logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
 logger = logging.getLogger("grouper")
-
-secret_keys = ["grouper_user", "grouper_pass"]
-env_var_names = ["GROUPER_USER", "GROUPER_PASS"]
-
-
-def has_all_keys(d, keys):
-    return all(k in d for k in keys)
-
-
-def read_json_data(filename, required_keys):
-    """Read and validate data from a json file."""
-    if not os.path.exists(filename):
-        raise Exception(f"No such file: {filename}")
-    data = json.loads(open(filename).read())
-    # check that we've got all of our required keys
-    if not has_all_keys(data, required_keys):
-        missing = set(required_keys) - set(data.keys())
-        s = f"Missing parameters in {filename}: {missing}"
-        raise Exception(s)
-    return data
-
-
-def read_credentials_from_dotenv(filename=None):
-    """Read credentials from environment variables or .env file.
-
-    Follows standard dotenv behavior:
-    1. Check existing environment variables first (GROUPER_USER, GROUPER_PASS)
-    2. If not found, load from .env file
-    3. Environment variables take precedence over .env file values
-
-    If filename is provided, loads that specific file.
-    If filename is None, looks for .env in current directory.
-    Returns a dict with credentials.
-    """
-    # Load .env file if specified or if default .env exists
-    if filename:
-        if not os.path.exists(filename):
-            raise Exception(f"No such file: {filename}")
-        load_dotenv(filename)
-    else:
-        # Only load .env if it exists (standard dotenv behavior)
-        if os.path.exists(".env"):
-            load_dotenv(".env")
-
-    # Get credentials from environment (either pre-existing or loaded from .env)
-    grouper_user = os.getenv("GROUPER_USER") or os.getenv("grouper_user")
-    grouper_pass = os.getenv("GROUPER_PASS") or os.getenv("grouper_pass")
-
-    if not grouper_user:
-        env_source = filename if filename else ".env file or environment variables"
-        raise Exception(f"Missing GROUPER_USER/grouper_user in {env_source}")
-    if not grouper_pass:
-        env_source = filename if filename else ".env file or environment variables"
-        raise Exception(f"Missing GROUPER_PASS/grouper_pass in {env_source}")
-
-    return {"grouper_user": grouper_user, "grouper_pass": grouper_pass}
-
-
-def read_credentials(filename, required_keys=secret_keys):
-    """Read credentials from {filename}. Returns a dict."""
-    return read_json_data(filename, required_keys)
-
-
-def read_member_file(f):
-    """Given an io file, return non-empty lines as a list."""
-    members = []
-    line = f.readline()
-    while line != "":
-        val = line.strip()
-        if val != "":
-            members.append(val)
-        line = f.readline()
-    return members
 
 
 ## main
