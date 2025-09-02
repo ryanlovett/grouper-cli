@@ -1,5 +1,5 @@
-grouper-cli
-=============
+# grouper-cli
+
 Manage Grouper groups.
 
 Requires Grouper API credentials.
@@ -28,8 +28,7 @@ optional arguments:
   -d                    Debug
 ```
 
-Examples
---------
+## Using grouper from the CLI
 
 Given an academic term and course number:
 ```
@@ -120,8 +119,59 @@ grouper subject -s 1559801 --source-id ldap
 grouper subject -s 1559801 --source-id ldap --json
 ```
 
-Credentials
------------
+## Using GrouperClient in Python
+
+
+The `GrouperClient` class provides a modern Python interface for interacting with Grouper Web Services. This is recommended for programmatic access and automation.
+
+### Basic Usage
+
+```python
+from grouper.client import GrouperClient
+from grouper.utils import read_grouper_credentials, load_dotenv_file
+import requests
+
+# If you want to load credentials from a .env file, uncomment the next line:
+# load_dotenv_file()  # or load_dotenv_file('/path/to/your/.env')
+
+creds = read_grouper_credentials()
+base_uri = "https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100"
+auth = requests.auth.HTTPBasicAuth(creds["grouper_user"], creds["grouper_pass"])
+client = GrouperClient(base_uri, auth)
+
+# List members of a group
+members = client.get_members("edu:berkeley:org:stat:classes:2019-summer:14720:enrolled")
+print("Group members:", members)
+
+# Create a new group
+client.create_group("edu:berkeley:org:stat:classes:2019-summer:14720:test-group", "Test Group")
+
+# Add members to a group
+client.add_members("edu:berkeley:org:stat:classes:2019-summer:14720:test-group", ["12345", "23456"])
+
+# Get subject info
+subject_info = client.get_subject_info("1559801")
+print(subject_info)
+```
+
+### Error Handling
+
+All API errors raise exceptions such as `GrouperException`, `GroupNotFoundException`, or `GrouperAPIError`. You can catch these for robust error handling:
+
+```python
+from grouper.client import GrouperException, GroupNotFoundException
+
+try:
+  members = client.get_members("nonexistent:group")
+except GroupNotFoundException:
+  print("Group not found!")
+except GrouperException as e:
+  print("Grouper error:", e)
+```
+
+See `grouper/client.py` for more available methods and details.
+
+## Credentials
 
 ### Environment (.env) Files (Recommended)
 
@@ -166,8 +216,7 @@ grouper -C /path/to/credentials.json list -g group:name
 2. Continue using the JSON file with the `-C` option
 3. Use the `--env-file` option to specify a custom `.env` file location
 
-Development
------------
+## Development
 
 ### Running Tests
 
