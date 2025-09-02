@@ -155,19 +155,19 @@ def main():
 
     # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
     # read credentials from either JSON file (legacy -C) or .env file (--env-file)
+
     if args.credentials:
         # Legacy JSON credentials file
         credspath = pathlib.PosixPath(args.credentials).expanduser()
         credentials = read_credentials(credspath)
     else:
-        # New .env credentials file
+        # Load dotenv file if specified, else default
         if args.env_file:
-            # Specific .env file provided
             credspath = pathlib.PosixPath(args.env_file).expanduser()
-            credentials = read_credentials_from_dotenv(credspath)
+            load_dotenv_file(credspath)
         else:
-            # Use default dotenv behavior (.env in current directory)
-            credentials = read_credentials_from_dotenv()
+            load_dotenv_file()
+        credentials = read_grouper_credentials()
 
     grouper_auth = grouper.auth(
         credentials["grouper_user"], credentials["grouper_pass"]
