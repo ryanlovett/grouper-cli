@@ -125,12 +125,6 @@ def main():
         "-s", dest="subject_id", required=True, help="Subject ID (e.g., 1559801)"
     )
     subject_parser.add_argument(
-        "--source-id",
-        dest="source_id",
-        default="ldap",
-        help="Source ID (default: ldap)",
-    )
-    subject_parser.add_argument(
         "-J",
         "--json",
         dest="json_output",
@@ -275,13 +269,13 @@ def main():
             if args.json_output:
                 # Get full subject information and output as JSON
                 subject_info = grouper.get_subject_info(
-                    base_uri, grouper_auth, args.subject_id, args.source_id
+                    base_uri, grouper_auth, args.subject_id
                 )
                 print(json.dumps(subject_info, indent=2))
             else:
                 # Default: just get and print the group names (one per line)
                 groups = grouper.get_subject_memberships(
-                    base_uri, grouper_auth, args.subject_id, args.source_id
+                    base_uri, grouper_auth, args.subject_id
                 )
                 for group in groups:
                     print(group)

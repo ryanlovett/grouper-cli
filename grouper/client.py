@@ -318,9 +318,7 @@ class GrouperClient:
         except GrouperException:
             return False
 
-    def get_subject_memberships(
-        self, subject_id: str, source_id: str = "ldap"
-    ) -> List[str]:
+    def get_subject_memberships(self, subject_id: str) -> List[str]:
         """Get the groups that a subject belongs to."""
         logger.info(f"getting memberships for subject {subject_id}")
         response = self._make_request("GET", f"/subjects/{subject_id}/memberships")
@@ -333,15 +331,14 @@ class GrouperClient:
         logger.info(f"subject {subject_id} is member of {len(groups)} groups")
         return groups
 
-    def get_subject_info(self, subject_id: str, source_id: str = "ldap") -> Dict:
+    def get_subject_info(self, subject_id: str) -> Dict:
         """Get information about a subject including their group memberships."""
         logger.info(f"getting subject information for {subject_id}")
 
         try:
-            memberships = self.get_subject_memberships(subject_id, source_id)
+            memberships = self.get_subject_memberships(subject_id)
             return {
                 "subject_id": subject_id,
-                "source_id": source_id,
                 "group_memberships": memberships,
                 "membership_count": len(memberships),
             }

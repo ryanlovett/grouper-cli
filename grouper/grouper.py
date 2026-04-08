@@ -301,7 +301,7 @@ def get_assign_attribute(base_uri, auth, attribute, group=None, stem=None):
     return response
 
 
-def get_subject_memberships(base_uri, auth, subject_id, source_id="ldap"):
+def get_subject_memberships(base_uri, auth, subject_id):
     """Get the groups that a subject (member) belongs to."""
     # https://github.com/Internet2/grouper/blob/master/grouper-ws/grouper-ws/doc/samples/getMemberships/WsSampleGetMembershipsRestLite2_withInput_json.txt
     logger.info(f"getting memberships for subject {subject_id}")
@@ -321,17 +321,16 @@ def get_subject_memberships(base_uri, auth, subject_id, source_id="ldap"):
     return groups
 
 
-def get_subject_info(base_uri, auth, subject_id, source_id="ldap"):
+def get_subject_info(base_uri, auth, subject_id):
     """Get information about a subject including their group memberships."""
     logger.info(f"getting subject information for {subject_id}")
 
     try:
         # Get the group memberships for this subject
-        memberships = get_subject_memberships(base_uri, auth, subject_id, source_id)
+        memberships = get_subject_memberships(base_uri, auth, subject_id)
 
         return {
             "subject_id": subject_id,
-            "source_id": source_id,
             "group_memberships": memberships,
             "membership_count": len(memberships),
         }
