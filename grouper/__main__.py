@@ -37,6 +37,8 @@ def main():
     parser.add_argument("-C", dest="credentials", help="JSON credentials file (legacy)")
     parser.add_argument(
         "--env-file",
+        type=str,
+        nargs="+",
         dest="env_file",
         help="Environment (.env) credentials file (default: .env in current directory)",
     )
@@ -144,14 +146,11 @@ def main():
     elif args.debug:
         logger.setLevel(logging.DEBUG)
 
-    base_uri = None
-    if "GROUPER_BASE_URI" in os.environ:
-        base_uri = os.environ["GROUPER_BASE_URI"]
-    if args.base_uri:
-        base_uri = args.base_uri
-    if not base_uri:
-        print("Set GROUPER_BASE_URI in the environment or via -B.")
-        sys.exit(1)
+    if args.env_file:
+        credspath = pathlib.PosixPath(args.env_file).expanduser()
+        load_dotenv_file(credspath)
+    else:
+        load_dotenv_file()
 
     # e.g. https://calgroups.berkeley.edu/gws/servicesRest/json/v2_2_100
     # read credentials from either JSON file (legacy -C) or .env file (--env-file)
@@ -162,16 +161,20 @@ def main():
         credentials = read_credentials(credspath)
     else:
         # Load dotenv file if specified, else default
-        if args.env_file:
-            credspath = pathlib.PosixPath(args.env_file).expanduser()
-            load_dotenv_file(credspath)
-        else:
-            load_dotenv_file()
         credentials = read_grouper_credentials()
 
     grouper_auth = grouper.auth(
         credentials["grouper_user"], credentials["grouper_pass"]
     )
+
+    base_uri = os.getenv("GROUPER_BASE_URI")
+    if "GROUPER_BASE_URI" in os.environ:
+        base_uri = os.environ["GROUPER_BASE_URI"]
+    if args.base_uri:
+        base_uri = args.base_uri
+    if not base_uri:
+        print("Set GROUPER_BASE_URI in the environment or via -B.")
+        sys.exit(1)
 
     # take action
     if args.command == "list":
