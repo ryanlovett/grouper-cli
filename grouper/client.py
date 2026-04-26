@@ -436,3 +436,80 @@ class GrouperClient:
         #     logger.info(f"Stem listing not yet implemented")
 
         return result
+
+    def get_privileges(
+        self,
+        group: Optional[str] = None,
+        stem: Optional[str] = None,
+        subject_id: Optional[str] = None,
+        privilege_name: Optional[str] = None,
+    ) -> Dict:
+        """Get privileges for a group or stem."""
+        endpoint = "/grouperPrivileges"
+        req = {}
+        if group:
+            req["groupName"] = group
+        elif stem:
+            req["stemName"] = stem
+        else:
+            raise ValueError("Must provide either group or stem")
+        if subject_id:
+            req["subjectId"] = subject_id
+        if privilege_name:
+            req["privilegeName"] = privilege_name
+
+        data = {"WsRestGetGrouperPrivilegesLiteRequest": req}
+        response = self._make_request("POST", endpoint, data=data)
+        self._check_response_errors(response, "WsGetGrouperPrivilegesLiteResult")
+        return response.get("WsGetGrouperPrivilegesLiteResult", {})
+
+    def assign_privileges(
+        self,
+        allowed: bool,
+        subject_id: str,
+        privilege_name: str,
+        group: Optional[str] = None,
+        stem: Optional[str] = None,
+        replace_all: bool = False,
+    ) -> Dict:
+        """Assign or remove privileges."""
+        endpoint = "/grouperPrivileges"
+
+        # We'll use the non-lite request if replace_all is used,
+        # but let's just use Lite for simplicity and add replaceAll if supported,
+        # otherwise standard AssignPrivileges.
+
+        req = {
+            "allowed": "T" if allowed else "F",
+            "subjectId": subject_id,
+            "privilegeName": privilege_name,
+        }
+        if group:
+            req["groupName"] = group
+        elif stem:
+            req["stemName"] = stem
+        else:
+            raise ValueError("Must provide either group or stem")
+
+        # replaceAllExisting is supported in WsRestAssignGrouperPrivilegesRequest
+        # but for simplicity we can just use the non-lite request
+
+        wsGroupLookups = [{"groupName": group}] if group else []
+        wsStemLookups = [{"stemName": stem}] if stem else []
+
+        full_req = {
+            "allowed": "T" if allowed else "F",
+            "wsSubjectLookups": [{"subjectId": subject_id}],
+            "privileges": [{"privilegeName": privilege_name}],
+        }
+        if group:
+            full_req["wsGroupLookups"] = wsGroupLookups
+        if stem:
+            full_req["wsStemLookups"] = wsStemLookups
+        if replace_all:
+            full_req["replaceAllExisting"] = "T"
+
+        data = {"WsRestAssignGrouperPrivilegesRequest": full_req}
+        response = self._make_request("POST", endpoint, data=data)
+        self._check_response_errors(response, "WsAssignGrouperPrivilegesResults")
+        return response.get("WsAssignGrouperPrivilegesResults", {})

@@ -132,6 +132,46 @@ def main():
         help="Output full subject information as JSON (default: show group names only)",
     )
 
+    # privileges
+    privileges_parser = subparsers.add_parser("privileges", help="Manage privileges")
+    privileges_subparsers = privileges_parser.add_subparsers(dest="privilege_command")
+
+    priv_list = privileges_subparsers.add_parser("list")
+    group_or_stem_list = priv_list.add_mutually_exclusive_group(required=True)
+    group_or_stem_list.add_argument("--group", help="Group name")
+    group_or_stem_list.add_argument("--stem", help="Stem name")
+    priv_list.add_argument("--subject-identifier", help="Subject ID")
+    priv_list.add_argument("--privilege-name", help="Privilege Name")
+    priv_list.add_argument(
+        "-J", "--json", dest="json_output", action="store_true", help="Output as JSON"
+    )
+
+    priv_add = privileges_subparsers.add_parser("add")
+    group_or_stem_add = priv_add.add_mutually_exclusive_group(required=True)
+    group_or_stem_add.add_argument("--group", help="Group name")
+    group_or_stem_add.add_argument("--stem", help="Stem name")
+    priv_add.add_argument("--subject-identifier", required=True, help="Subject ID")
+    priv_add.add_argument(
+        "--privilege-name",
+        required=True,
+        choices=["admin", "update", "read", "view", "create", "stem"],
+        help="Privilege Name",
+    )
+    priv_add.add_argument("--replace-all", action="store_true")
+    priv_add.add_argument(
+        "-J", "--json", dest="json_output", action="store_true", help="Output as JSON"
+    )
+
+    priv_del = privileges_subparsers.add_parser("delete")
+    group_or_stem_del = priv_del.add_mutually_exclusive_group(required=True)
+    group_or_stem_del.add_argument("--group", help="Group name")
+    group_or_stem_del.add_argument("--stem", help="Stem name")
+    priv_del.add_argument("--subject-identifier", required=True, help="Subject ID")
+    priv_del.add_argument("--privilege-name", required=True, help="Privilege Name")
+    priv_del.add_argument(
+        "-J", "--json", dest="json_output", action="store_true", help="Output as JSON"
+    )
+
     args = parser.parse_args()
 
     # set verbosity
@@ -281,6 +321,72 @@ def main():
                     print(group)
         except Exception as e:
             logger.error(f"Error getting subject information: {e}")
+            sys.exit(1)
+
+    elif args.command == "privileges":
+        from .client import GrouperClient
+
+        # Get a modern client since the legacy client (grouper.py) might not have it
+        client = GrouperClient(base_uri, grouper_auth)
+        try:
+            if args.privilege_command == "list":
+                result = client.get_privileges(
+                    group=args.group,
+                    stem=args.stem,
+                    subject_id=args.subject_identifier,
+                    privilege_name=args.privilege_name,
+                )
+                if getattr(args, "json_output", False):
+                    import json
+
+                    print(json.dumps(result, indent=2))
+                else:
+                    privileges = result.get("privilegeResults", [])
+                    if not privileges:
+                        print("No privileges found.")
+                    else:
+                        for p in privileges:
+                            owner = p.get("ownerGroup", {}).get(
+                                "name",
+                                p.get("ownerStem", {}).get(
+                                    "name", args.group or args.stem or "Unknown"
+                                ),
+                            )
+                            subject = p.get("wsSubject", {}).get("id", "Unknown")
+                            priv_name = p.get("privilegeName", "Unknown")
+                            priv_type = p.get("privilegeType", "Unknown")
+                            print(f"{owner} - {subject} - {priv_name} ({priv_type})")
+            elif args.privilege_command == "add":
+                result = client.assign_privileges(
+                    allowed=True,
+                    group=args.group,
+                    stem=args.stem,
+                    subject_id=args.subject_identifier,
+                    privilege_name=args.privilege_name,
+                    replace_all=args.replace_all,
+                )
+                if getattr(args, "json_output", False):
+                    import json
+
+                    print(json.dumps(result, indent=2))
+                else:
+                    print("Privileges added successfully.")
+            elif args.privilege_command == "delete":
+                result = client.assign_privileges(
+                    allowed=False,
+                    group=args.group,
+                    stem=args.stem,
+                    subject_id=args.subject_identifier,
+                    privilege_name=args.privilege_name,
+                )
+                if getattr(args, "json_output", False):
+                    import json
+
+                    print(json.dumps(result, indent=2))
+                else:
+                    print("Privileges deleted successfully.")
+        except Exception as e:
+            logger.error(f"Error executing privileges command: {e}")
             sys.exit(1)
 
 
