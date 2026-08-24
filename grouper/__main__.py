@@ -337,8 +337,6 @@ def main():
                     privilege_name=args.privilege_name,
                 )
                 if getattr(args, "json_output", False):
-                    import json
-
                     print(json.dumps(result, indent=2))
                 else:
                     privileges = result.get("privilegeResults", [])
@@ -366,8 +364,6 @@ def main():
                     replace_all=args.replace_all,
                 )
                 if getattr(args, "json_output", False):
-                    import json
-
                     print(json.dumps(result, indent=2))
                 else:
                     print("Privileges added successfully.")
@@ -380,8 +376,6 @@ def main():
                     privilege_name=args.privilege_name,
                 )
                 if getattr(args, "json_output", False):
-                    import json
-
                     print(json.dumps(result, indent=2))
                 else:
                     print("Privileges deleted successfully.")
