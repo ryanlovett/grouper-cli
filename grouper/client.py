@@ -377,7 +377,10 @@ class GrouperClient:
                 response = self._make_request("POST", "/groups", data)
 
                 # Handle the response
-                if "WsFindGroupsResults" in response:
+                if "WsRestResultProblem" in response:
+                    msg = response["WsRestResultProblem"]["resultMetadata"]["resultMessage"]
+                    logger.warning(f"Could not fetch groups: {msg}")
+                elif "WsFindGroupsResults" in response:
                     self._check_response_errors(response, "WsFindGroupsResults")
 
                     # Extract groups from response
