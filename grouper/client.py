@@ -433,10 +433,52 @@ class GrouperClient:
             except GrouperException as e:
                 logger.warning(f"Could not fetch groups for {stem}: {e}")
 
-        # Get stems - this might need to be a separate call or might not be supported
-        # For now, let's comment this out until we get groups working
-        # if subject_types in ["all", "stems"]:
-        #     logger.info(f"Stem listing not yet implemented")
+        # Get stems
+        if subject_types in ["all", "stems"]:
+            try:
+                data = {
+                    "WsRestFindStemsLiteRequest": {
+                        "stemQueryFilterType": "FIND_BY_PARENT_STEM_NAME",
+                        "parentStemName": stem,
+                    }
+                }
+
+                response = self._make_request("POST", "/stems", data)
+
+                if "WsRestResultProblem" in response:
+                    msg = response["WsRestResultProblem"]["resultMetadata"]["resultMessage"]
+                    logger.warning(f"Could not fetch stems: {msg}")
+                elif "WsFindStemsResults" in response:
+                    self._check_response_errors(response, "WsFindStemsResults")
+
+                    if "stemResults" in response["WsFindStemsResults"]:
+                        for stem_entry in response["WsFindStemsResults"]["stemResults"]:
+                            ws_stem = stem_entry.get("wsStem", {})
+                            if scope == "ONE":
+                                expected_prefix = stem + ":"
+                                if (
+                                    ws_stem.get("name", "").startswith(expected_prefix)
+                                    and ":"
+                                    not in ws_stem.get("name", "")[len(expected_prefix):]
+                                ):
+                                    result["stems"].append({
+                                        "name": ws_stem.get("name"),
+                                        "displayName": ws_stem.get("displayName"),
+                                        "description": ws_stem.get("description"),
+                                        "extension": ws_stem.get("extension"),
+                                        "displayExtension": ws_stem.get("displayExtension"),
+                                    })
+                            else:
+                                result["stems"].append({
+                                    "name": ws_stem.get("name"),
+                                    "displayName": ws_stem.get("displayName"),
+                                    "description": ws_stem.get("description"),
+                                    "extension": ws_stem.get("extension"),
+                                    "displayExtension": ws_stem.get("displayExtension"),
+                                })
+
+            except GrouperException as e:
+                logger.warning(f"Could not fetch stems for {stem}: {e}")
 
         return result
 
