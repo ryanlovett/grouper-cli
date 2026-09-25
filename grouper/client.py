@@ -84,12 +84,46 @@ class GrouperClient:
             response.raise_for_status()
             return response.json()
 
+        except requests.exceptions.HTTPError as e:
+            # Grouper reports failures such as GROUP_NOT_FOUND with an HTTP
+            # error status and the details in the JSON body.
+            error = self._error_from_body(e.response)
+            if error is None:
+                logger.error(f"HTTP request failed: {e}")
+                raise GrouperException(f"HTTP request failed: {e}") from e
+            logger.error(f"Grouper request failed: {error}")
+            raise error from e
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {e}")
             raise GrouperException(f"HTTP request failed: {e}") from e
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode JSON response: {e}")
             raise GrouperException(f"Invalid JSON response: {e}") from e
+
+    @staticmethod
+    def _error_from_body(response: Optional[requests.Response]) -> Optional[GrouperException]:
+        """The exception described by a Grouper error response, if it has one.
+
+        Grouper responses look like {"WsSomeResults": {"resultMetadata":
+        {"resultCode": ..., "resultMessage": ...}, ...}}.
+        """
+        if response is None:
+            return None
+        try:
+            body = response.json()
+        except ValueError:
+            return None
+        if not isinstance(body, dict) or len(body) != 1:
+            return None
+        key, result = next(iter(body.items()))
+        meta = result.get("resultMetadata") if isinstance(result, dict) else None
+        if not isinstance(meta, dict):
+            return None
+        code = meta.get("resultCode") or ("API_PROBLEM" if key == "WsRestResultProblem" else "UNKNOWN")
+        message = meta.get("resultMessage", "Unknown error")
+        if code == "GROUP_NOT_FOUND":
+            return GroupNotFoundException(message)
+        return GrouperAPIError(code, message, body)
 
     def _check_response_errors(self, response: Dict, expected_result_key: str) -> None:
         """Check response for common error patterns and raise appropriate exceptions"""
@@ -239,7 +273,9 @@ class GrouperClient:
                 {member_key: member}
             )
 
-        return self._make_request("PUT", f"/groups/{group}/members", data)
+        response = self._make_request("PUT", f"/groups/{group}/members", data)
+        self._check_response_errors(response, "WsAddMemberResults")
+        return response
 
     def delete_members(self, group: str, members: List[str]) -> Dict:
         """Delete members from a group."""
@@ -256,7 +292,9 @@ class GrouperClient:
                 {member_key: member}
             )
 
-        return self._make_request("PUT", f"/groups/{group}/members", data)
+        response = self._make_request("PUT", f"/groups/{group}/members", data)
+        self._check_response_errors(response, "WsDeleteMemberResults")
+        return response
 
     def assign_attribute(
         self,
