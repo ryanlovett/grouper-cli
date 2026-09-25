@@ -1,261 +1,85 @@
-#!/usr/bin/env python3
-"""
-Tests for the subject functionality in grouper-cli.
-Uses pytest for testing framework.
-"""
+"""Tests for subject membership lookups (`grouper subject`)."""
+
+import json
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import Mock, patch
-import sys
-import os
-
-# Add the grouper module to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from grouper import grouper as grouper_module
+from grouper.client import GrouperAPIError
+
+from .conftest import BASE_URI
+
+SUBJECT_ID = "1559801"
+
+MEMBERSHIPS = {
+    "WsGetMembershipsResults": {
+        "resultMetadata": {"resultCode": "SUCCESS", "success": "T"},
+        "wsGroups": [{"name": "test:testGroup1"}, {"name": "test:testGroup2"}],
+    }
+}
+NO_MEMBERSHIPS = {"WsGetMembershipsResults": {"resultMetadata": {"resultCode": "SUCCESS", "success": "T"}}}
 
 
-class TestSubjectFunctionality:
-    """Test class for subject-related functionality."""
-    
-    @pytest.fixture
-    def mock_auth(self):
-        """Fixture to provide mock authentication."""
-        return grouper_module.auth('test_user', 'test_pass')
-    
-    @pytest.fixture
-    def base_uri(self):
-        """Fixture to provide base URI."""
-        return 'https://test.grouper.edu/gws/servicesRest/json/v2_5_000'
-    
-    @pytest.fixture
-    def subject_id(self):
-        """Fixture to provide test subject ID."""
-        return '1559801'
-    
-    @pytest.fixture
-    def mock_successful_response(self):
-        """Fixture for a successful API response."""
-        return {
-            "WsGetMembershipsResults": {
-                "responseMetadata": {
-                    "millis": "49",
-                    "serverVersion": "2.5.0"
-                },
-                "resultMetadata": {
-                    "resultCode": "SUCCESS",
-                    "resultMessage": "Found 2 results involving 2 groups and 1 subjects",
-                    "success": "T"
-                },
-                "wsGroups": [
-                    {
-                        "displayExtension": "testGroup1",
-                        "displayName": "test:testGroup1",
-                        "enabled": "T",
-                        "extension": "testGroup1",
-                        "idIndex": "10031",
-                        "name": "test:testGroup1",
-                        "typeOfGroup": "group",
-                        "uuid": "6488e4e9d11d405598a420954c86fabf"
-                    },
-                    {
-                        "displayExtension": "testGroup2",
-                        "displayName": "test:testGroup2",
-                        "enabled": "T",
-                        "extension": "testGroup2",
-                        "idIndex": "10032",
-                        "name": "test:testGroup2",
-                        "typeOfGroup": "group",
-                        "uuid": "7599f5f0e22e516609b531065d97fbcg"
-                    }
-                ]
-            }
-        }
-    
-    @pytest.fixture
-    def mock_error_response(self):
-        """Fixture for an error API response."""
-        return {
-            "WsRestResultProblem": {
-                "resultMetadata": {
-                    "resultCode": "INVALID_QUERY",
-                    "resultMessage": "Subject not found",
-                    "success": "F"
-                }
-            }
-        }
-    
-    def test_get_subject_memberships_success(self, mock_auth, base_uri, subject_id, mock_successful_response):
-        """Test successful retrieval of subject memberships."""
-        with patch('grouper.grouper.requests.get') as mock_get:
-            mock_get.return_value.json.return_value = mock_successful_response
-            mock_get.return_value.status_code = 200
-            
-            result = grouper_module.get_subject_memberships(base_uri, mock_auth, subject_id)
-            
-            # Verify results
-            expected_groups = ['test:testGroup1', 'test:testGroup2']
-            assert result == expected_groups
-            
-            # Verify the API was called correctly
-            mock_get.assert_called_once()
-            args, kwargs = mock_get.call_args
-            assert f'/subjects/{subject_id}/memberships' in args[0]
-            assert kwargs['auth'] == mock_auth
-            assert kwargs['headers']['Content-type'] == 'text/x-json'
-    
-    def test_get_subject_memberships_empty_response(self, mock_auth, base_uri, subject_id):
-        """Test handling of empty membership response."""
-        empty_response = {
-            "WsGetMembershipsResults": {
-                "responseMetadata": {
-                    "millis": "28",
-                    "serverVersion": "2.5.0"
-                },
-                "resultMetadata": {
-                    "resultCode": "SUCCESS",
-                    "resultMessage": "Found 0 results involving 0 groups and 0 subjects",
-                    "success": "T"
-                }
-            }
-        }
-        
-        with patch('grouper.grouper.requests.get') as mock_get:
-            mock_get.return_value.json.return_value = empty_response
-            
-            result = grouper_module.get_subject_memberships(base_uri, mock_auth, subject_id)
-            
-            assert result == []
-    
-    def test_get_subject_memberships_error(self, mock_auth, base_uri, mock_error_response):
-        """Test error handling for subject membership retrieval."""
-        with patch('grouper.grouper.requests.get') as mock_get:
-            mock_get.return_value.json.return_value = mock_error_response
-            
-            with pytest.raises(Exception) as exc_info:
-                grouper_module.get_subject_memberships(base_uri, mock_auth, 'invalid_subject')
-            
-            # Verify that an exception was raised with the expected error info
-            assert "resultCode" in str(exc_info.value)
-    
-    def test_get_subject_info_success(self, mock_auth, base_uri, subject_id):
-        """Test successful retrieval of subject information."""
-        expected_memberships = ['test:group1', 'test:group2', 'test:group3']
-        
-        with patch('grouper.grouper.get_subject_memberships') as mock_get_memberships:
-            mock_get_memberships.return_value = expected_memberships
-            
-            result = grouper_module.get_subject_info(base_uri, mock_auth, subject_id, 'ldap')
-            
-            expected_result = {
-                'subject_id': subject_id,
-                'source_id': 'ldap',
-                'group_memberships': expected_memberships,
-                'membership_count': 3
-            }
-            
-            assert result == expected_result
-            
-            # Verify the internal function was called correctly
-            mock_get_memberships.assert_called_once_with(base_uri, mock_auth, subject_id, 'ldap')
-    
-    def test_get_subject_info_with_default_source(self, mock_auth, base_uri, subject_id):
-        """Test subject info retrieval with default source ID."""
-        with patch('grouper.grouper.get_subject_memberships') as mock_get_memberships:
-            mock_get_memberships.return_value = ['test:group1']
-            
-            result = grouper_module.get_subject_info(base_uri, mock_auth, subject_id)
-            
-            assert result['source_id'] == 'ldap'  # default value
-            mock_get_memberships.assert_called_once_with(base_uri, mock_auth, subject_id, 'ldap')
-    
-    def test_get_subject_info_propagates_errors(self, mock_auth, base_uri, subject_id):
-        """Test that get_subject_info properly propagates errors from get_subject_memberships."""
-        with patch('grouper.grouper.get_subject_memberships') as mock_get_memberships:
-            mock_get_memberships.side_effect = Exception("API Error")
-            
-            with pytest.raises(Exception) as exc_info:
-                grouper_module.get_subject_info(base_uri, mock_auth, subject_id)
-            
-            assert "API Error" in str(exc_info.value)
+@pytest.fixture
+def auth():
+    return grouper_module.auth("test_user", "test_pass")
 
 
-class TestSubjectParameterValidation:
-    """Test parameter validation for subject functions."""
-    
-    @pytest.mark.parametrize("subject_id,source_id", [
-        ("1559801", "ldap"),
-        ("12345", "local"),
-        ("user.name", "custom"),
-    ])
-    def test_valid_parameters(self, subject_id, source_id):
-        """Test that valid parameters are accepted."""
-        with patch('grouper.grouper.requests.get') as mock_get:
-            mock_response = {
-                "WsGetMembershipsResults": {
-                    "resultMetadata": {"resultCode": "SUCCESS", "success": "T"}
-                }
-            }
-            mock_get.return_value.json.return_value = mock_response
-            
-            auth = grouper_module.auth('test_user', 'test_pass')
-            base_uri = 'https://test.grouper.edu/gws/servicesRest/json/v2_5_000'
-            
-            # Should not raise an exception
-            result = grouper_module.get_subject_memberships(base_uri, auth, subject_id, source_id)
-            assert isinstance(result, list)
+@pytest.fixture
+def session_get(make_response):
+    """Patch the HTTP GET the client makes; tests set its response."""
+    with patch("requests.Session.get") as get:
+        get.respond = lambda status, body: setattr(get, "return_value", make_response(status, body))
+        yield get
 
 
-class TestSubjectJSONOutput:
-    """Test JSON output functionality for subject info."""
-    
-    def test_subject_info_json_serializable(self):
-        """Test that subject info dictionary is JSON serializable."""
-        with patch('grouper.grouper.get_subject_memberships') as mock_get_memberships:
-            mock_get_memberships.return_value = ['test:group1', 'test:group2']
-            
-            auth = grouper_module.auth('test_user', 'test_pass')
-            base_uri = 'https://test.grouper.edu/gws/servicesRest/json/v2_5_000'
-            
-            result = grouper_module.get_subject_info(base_uri, auth, '1559801')
-            
-            # Verify that the result can be serialized to JSON
-            import json
-            json_output = json.dumps(result, indent=2)
-            
-            # Verify that it can be parsed back
-            parsed = json.loads(json_output)
-            assert parsed == result
-            
-            # Verify structure
-            assert 'subject_id' in parsed
-            assert 'source_id' in parsed  
-            assert 'group_memberships' in parsed
-            assert 'membership_count' in parsed
-    
-    def test_subject_info_json_structure(self):
-        """Test the structure of the JSON output."""
-        with patch('grouper.grouper.get_subject_memberships') as mock_get_memberships:
-            mock_get_memberships.return_value = ['group1', 'group2', 'group3']
-            
-            auth = grouper_module.auth('test_user', 'test_pass')
-            base_uri = 'https://test.grouper.edu/gws/servicesRest/json/v2_5_000'
-            
-            result = grouper_module.get_subject_info(base_uri, auth, '12345', 'custom')
-            
-            import json
-            json_output = json.dumps(result, indent=2)
-            
-            expected_structure = {
-                'subject_id': '12345',
-                'source_id': 'custom',
-                'group_memberships': ['group1', 'group2', 'group3'],
-                'membership_count': 3
-            }
-            
-            assert json.loads(json_output) == expected_structure
+class TestGetSubjectMemberships:
+    def test_success(self, auth, session_get):
+        session_get.respond(200, MEMBERSHIPS)
+        assert grouper_module.get_subject_memberships(BASE_URI, auth, SUBJECT_ID) == [
+            "test:testGroup1",
+            "test:testGroup2",
+        ]
+        session_get.assert_called_once()
+        assert session_get.call_args.args[0] == f"{BASE_URI}/subjects/{SUBJECT_ID}/memberships"
+
+    def test_no_memberships(self, auth, session_get):
+        session_get.respond(200, NO_MEMBERSHIPS)
+        assert grouper_module.get_subject_memberships(BASE_URI, auth, SUBJECT_ID) == []
+
+    def test_problem_in_response(self, auth, session_get):
+        session_get.respond(200, {"WsRestResultProblem": {"resultMetadata": {"resultMessage": "Subject not found"}}})
+        with pytest.raises(GrouperAPIError, match="API_PROBLEM: Subject not found"):
+            grouper_module.get_subject_memberships(BASE_URI, auth, "invalid_subject")
+
+    def test_http_error(self, auth, session_get):
+        body = {"WsGetMembershipsResults": {"resultMetadata": {"resultCode": "SUBJECT_NOT_FOUND", "resultMessage": "no such subject"}}}
+        session_get.respond(404, body)
+        with pytest.raises(GrouperAPIError) as info:
+            grouper_module.get_subject_memberships(BASE_URI, auth, "invalid_subject")
+        assert info.value.code == "SUBJECT_NOT_FOUND"
+
+    @pytest.mark.parametrize("subject_id", ["1559801", "12345", "user.name"])
+    def test_subject_id_in_url(self, auth, session_get, subject_id):
+        session_get.respond(200, NO_MEMBERSHIPS)
+        assert grouper_module.get_subject_memberships(BASE_URI, auth, subject_id) == []
+        assert session_get.call_args.args[0].endswith(f"/subjects/{subject_id}/memberships")
 
 
-if __name__ == "__main__":
-    # Allow running pytest from this file directly
-    pytest.main([__file__])
+class TestGetSubjectInfo:
+    def test_structure(self, auth):
+        with patch.object(grouper_module, "get_subject_memberships", return_value=["g1", "g2", "g3"]) as memberships:
+            result = grouper_module.get_subject_info(BASE_URI, auth, SUBJECT_ID)
+        assert result == {"subject_id": SUBJECT_ID, "group_memberships": ["g1", "g2", "g3"], "membership_count": 3}
+        memberships.assert_called_once_with(BASE_URI, auth, SUBJECT_ID)
+
+    def test_json_serializable(self, auth):
+        with patch.object(grouper_module, "get_subject_memberships", return_value=["g1"]):
+            result = grouper_module.get_subject_info(BASE_URI, auth, SUBJECT_ID)
+        assert json.loads(json.dumps(result)) == result
+
+    def test_propagates_errors(self, auth):
+        with patch.object(grouper_module, "get_subject_memberships", side_effect=Exception("API Error")):
+            with pytest.raises(Exception, match="API Error"):
+                grouper_module.get_subject_info(BASE_URI, auth, SUBJECT_ID)

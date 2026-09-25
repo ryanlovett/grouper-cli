@@ -42,8 +42,8 @@ def read_grouper_credentials():
     return {"grouper_user": grouper_user, "grouper_pass": grouper_pass}
 
 
-def read_credentials(filename, required_keys):
-    """Read credentials from {filename}. Returns a dict."""
+def read_credentials(filename, required_keys=("grouper_user", "grouper_pass")):
+    """Read credentials from the JSON file {filename}. Returns a dict."""
     return read_json_data(filename, required_keys)
 
 
