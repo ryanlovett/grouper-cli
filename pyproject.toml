@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grouper"
+version = "0.7"
+description = "Administer Grouper groups."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Ryan Lovett", email = "rylo@berkeley.edu" },
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests",
+    "python-dotenv",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "unittest-xml-reporting",  # For CI/CD XML test reports
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "coverage",  # For test coverage reports
+]
+
+[project.scripts]
+grouper = "grouper.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ryanlovett/grouper"
+
+[tool.hatch.build.targets.wheel]
+packages = ["grouper"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "grouper",
+    "tests",
+    "README.md",
+    "LICENSE",
+]

@@ -19,4 +19,10 @@ The legacy API internally uses the modern client for improved performance
 and error handling while maintaining full backward compatibility.
 """
 
-__version__ = "0.7"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("grouper")
+except PackageNotFoundError:
+    # Package is not installed, e.g. running from a source checkout
+    __version__ = "unknown"
