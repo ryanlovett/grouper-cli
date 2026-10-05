@@ -83,3 +83,56 @@ class TestGetSubjectInfo:
         with patch.object(grouper_module, "get_subject_memberships", side_effect=Exception("API Error")):
             with pytest.raises(Exception, match="API Error"):
                 grouper_module.get_subject_info(BASE_URI, auth, SUBJECT_ID)
+
+
+SUBJECTS = {
+    "WsGetSubjectsResults": {
+        "resultMetadata": {"resultCode": "SUCCESS", "success": "T"},
+        # Grouper adds its own default attributes after the requested ones
+        "subjectAttributeNames": ["mail", "displayName", "givenname"],
+        "wsSubjects": [
+            {"resultCode": "SUBJECT_NOT_FOUND", "success": "F", "id": "999"},
+            {
+                "resultCode": "SUCCESS",
+                "success": "T",
+                "id": SUBJECT_ID,
+                "sourceId": "ldap",
+                "attributeValues": ["oski@berkeley.edu", "Oski Bear", "Oski"],
+            },
+        ],
+    }
+}
+
+
+@pytest.fixture
+def session_post(make_response):
+    """Patch the HTTP POST the client makes; tests set its response."""
+    with patch("requests.Session.post") as post:
+        post.respond = lambda status, body: setattr(post, "return_value", make_response(status, body))
+        yield post
+
+
+class TestGetSubjectAttributes:
+    def test_success(self, auth, session_post):
+        session_post.respond(200, SUBJECTS)
+        result = grouper_module.get_subject_attributes(BASE_URI, auth, [SUBJECT_ID, "999"], ["mail", "displayName"])
+        assert result == {SUBJECT_ID: {"mail": "oski@berkeley.edu", "displayName": "Oski Bear"}}
+        assert session_post.call_args.args[0] == f"{BASE_URI}/subjects"
+        request = json.loads(session_post.call_args.kwargs["data"])["WsRestGetSubjectsRequest"]
+        assert request["wsSubjectLookups"] == [{"subjectId": SUBJECT_ID}, {"subjectId": "999"}]
+        assert request["subjectAttributeNames"] == ["mail", "displayName"]
+
+    def test_missing_attribute_is_empty(self, auth, session_post):
+        session_post.respond(200, SUBJECTS)
+        result = grouper_module.get_subject_attributes(BASE_URI, auth, [SUBJECT_ID], ["mail", "nosuchattr"])
+        assert result == {SUBJECT_ID: {"mail": "oski@berkeley.edu", "nosuchattr": ""}}
+
+    def test_none_found(self, auth, session_post):
+        body = {"WsGetSubjectsResults": {"resultMetadata": {"resultCode": "SUCCESS", "success": "T"}}}
+        session_post.respond(200, body)
+        assert grouper_module.get_subject_attributes(BASE_URI, auth, ["999"], ["mail"]) == {}
+
+    def test_problem_in_response(self, auth, session_post):
+        session_post.respond(200, {"WsRestResultProblem": {"resultMetadata": {"resultMessage": "Invalid request"}}})
+        with pytest.raises(GrouperAPIError, match="API_PROBLEM: Invalid request"):
+            grouper_module.get_subject_attributes(BASE_URI, auth, [SUBJECT_ID], ["mail"])

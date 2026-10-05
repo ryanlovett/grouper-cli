@@ -384,6 +384,44 @@ class GrouperClient:
             logger.error(f"Error getting subject info for {subject_id}: {e}")
             raise
 
+    def get_subject_attributes(
+        self, subject_ids: List[str], attribute_names: List[str]
+    ) -> Dict[str, Dict[str, str]]:
+        """Get attributes of subjects, e.g. "mail", from their subject source.
+
+        Grouper looks subjects up in the sources it is configured with, e.g.
+        an LDAP directory, and can return their attributes.
+
+        Returns a dict of subject id -> {attribute name: value}. Subjects that
+        are not found are omitted, and attributes that the source doesn't have
+        are empty strings.
+        """
+        logger.info(f"getting {attribute_names} for {len(subject_ids)} subjects")
+        data = {
+            "WsRestGetSubjectsRequest": {
+                "wsSubjectLookups": [{"subjectId": s} for s in subject_ids],
+                "subjectAttributeNames": list(attribute_names),
+            }
+        }
+        response = self._make_request("POST", "/subjects", data)
+        self._check_response_errors(response, "WsGetSubjectsResults")
+
+        results = response.get("WsGetSubjectsResults", {})
+        # Grouper may return more attributes than we asked for
+        names = results.get("subjectAttributeNames", [])
+        attributes = {}
+        for subject in results.get("wsSubjects", []):
+            if subject.get("resultCode") != "SUCCESS":
+                logger.warning(
+                    f"subject {subject.get('id')}: {subject.get('resultCode')}"
+                )
+                continue
+            values = dict(zip(names, subject.get("attributeValues") or []))
+            attributes[subject["id"]] = {
+                name: values.get(name) or "" for name in attribute_names
+            }
+        return attributes
+
     def get_stem_members(
         self, stem: str, scope: str = "ONE", subject_types: str = "all"
     ) -> Dict:

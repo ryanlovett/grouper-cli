@@ -339,6 +339,13 @@ def get_subject_info(base_uri, auth, subject_id):
         raise e
 
 
+def get_subject_attributes(base_uri, auth, subject_ids, attribute_names):
+    """Get attributes of subjects, e.g. "mail", from their subject source.
+    Returns a dict of subject id -> {attribute name: value}."""
+    client = GrouperClient(base_uri, auth)
+    return client.get_subject_attributes(subject_ids, attribute_names)
+
+
 def get_stem_members(base_uri, auth, stem, scope="ONE", subject_types="all"):
     """Get all groups and sub-stems within a stem (folder).
 
