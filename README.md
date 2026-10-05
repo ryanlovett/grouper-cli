@@ -112,6 +112,12 @@ grouper subject -s 1559801 -J
 #   "membership_count": 2
 # }
 
+# get attributes of subjects from their source (e.g. CalNet LDAP); prints
+# the subject id and the values, tab-separated, one subject per line
+grouper subject -s 1559801 -a mail
+grouper subject -s 1559801 169791 -a mail,displayName
+grouper subject -s 1559801 -a mail --json
+
 # get subject info with custom source ID
 grouper subject -s 1559801 --source-id ldap
 

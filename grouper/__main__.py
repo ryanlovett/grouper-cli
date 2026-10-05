@@ -122,7 +122,17 @@ def main():
         "subject", help="Get information about a subject (member)"
     )
     subject_parser.add_argument(
-        "-s", dest="subject_id", required=True, help="Subject ID (e.g., 1559801)"
+        "-s",
+        dest="subject_ids",
+        required=True,
+        nargs="+",
+        help="Subject ID(s) (e.g., 1559801). More than one requires -a.",
+    )
+    subject_parser.add_argument(
+        "-a",
+        dest="attributes",
+        type=lambda x: x.split(","),
+        help="Comma-separated subject attributes to get, e.g. mail,displayName",
     )
     subject_parser.add_argument(
         "-J",
@@ -305,17 +315,33 @@ def main():
             out = grouper.group_has_attr(base_uri, grouper_auth, args.group, attribute)
             print(out)
     elif args.command == "subject":
+        if not args.attributes and len(args.subject_ids) > 1:
+            print("Specify attributes with -a to look up more than one subject.")
+            sys.exit(1)
         try:
-            if args.json_output:
+            if args.attributes:
+                attributes = grouper.get_subject_attributes(
+                    base_uri, grouper_auth, args.subject_ids, args.attributes
+                )
+                if args.json_output:
+                    print(json.dumps(attributes, indent=2))
+                else:
+                    # one line per subject: id, then values, tab-separated
+                    for subject_id in args.subject_ids:
+                        if subject_id in attributes:
+                            values = attributes[subject_id]
+                            fields = [values[a] for a in args.attributes]
+                            print("\t".join([subject_id] + fields))
+            elif args.json_output:
                 # Get full subject information and output as JSON
                 subject_info = grouper.get_subject_info(
-                    base_uri, grouper_auth, args.subject_id
+                    base_uri, grouper_auth, args.subject_ids[0]
                 )
                 print(json.dumps(subject_info, indent=2))
             else:
                 # Default: just get and print the group names (one per line)
                 groups = grouper.get_subject_memberships(
-                    base_uri, grouper_auth, args.subject_id
+                    base_uri, grouper_auth, args.subject_ids[0]
                 )
                 for group in groups:
                     print(group)
